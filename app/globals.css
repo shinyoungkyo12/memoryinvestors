@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* ── 디자인 토큰 ─────────────────────────────────────────────
+   배경: 실리콘 웨이퍼를 연상시키는 청회색 계열 다크
+   상승/하락: 한국 시장 관례 (적색 상승 / 청색 하락)
+   액센트: HBM 구리 본딩을 닮은 카퍼 골드                      */
+:root {
+  --bg: #0a0d13;
+  --panel: #10141d;
+  --panel2: #161c29;
+  --border: #1e2530;
+  --text: #e7eaf0;
+  --muted: #8a93a5;
+  --up: #f04452;
+  --down: #3182f6;
+  --accent: #d8a24a;
+  --live: #4ade80;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-body: "Pretendard Variable", Pretendard, -apple-system, "Segoe UI",
+    "Noto Sans KR", sans-serif;
+}
+
+@theme inline {
+  --font-mono: var(--font-mono);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── 티커 테이프 ───────────────────────────────────────────── */
+.tape {
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--panel) 0%, var(--bg) 100%);
+}
+
+.tape-track {
+  display: flex;
+  width: max-content;
+  animation: tape-scroll 36s linear infinite;
+}
+
+.tape:hover .tape-track {
+  animation-play-state: paused;
+}
+
+.tape-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.45rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tape-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* 모션 최소화 환경: 테이프 정지 + 줄바꿈 허용 */
+@media (prefers-reduced-motion: reduce) {
+  .tape-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .tape-item:nth-child(n + 6) {
+    display: none; /* 복제분 숨김 */
+  }
+}
+
+/* 스크롤바 (차트 패널 톤에 맞춤) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
