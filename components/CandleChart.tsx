@@ -5,12 +5,19 @@ import {
   createChart,
   CandlestickSeries,
   HistogramSeries,
+  LineSeries,
   ColorType,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { getSymbol, INTERVAL_SECONDS, type Interval } from "@/lib/symbols";
+import {
+  getSymbol,
+  INTERVAL_SECONDS,
+  MA_COLORS,
+  MA_PERIODS,
+  type Interval,
+} from "@/lib/symbols";
 import { useMarketFeed } from "@/lib/market-feed";
 import type { Candle } from "@/lib/types";
 
@@ -25,11 +32,29 @@ interface Props {
   interval: Interval;
 }
 
+/** 단순이동평균 (확정 봉 종가 기준) */
+function sma(candles: Candle[], period: number) {
+  const out: { time: UTCTimestamp; value: number }[] = [];
+  let sum = 0;
+  for (let i = 0; i < candles.length; i++) {
+    sum += candles[i].close;
+    if (i >= period) sum -= candles[i - period].close;
+    if (i >= period - 1) {
+      out.push({
+        time: candles[i].time as UTCTimestamp,
+        value: sum / period,
+      });
+    }
+  }
+  return out;
+}
+
 export default function CandleChart({ ticker, interval }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const maSeriesRef = useRef<Map<number, ISeriesApi<"Line">>>(new Map());
   const lastCandleRef = useRef<Candle | null>(null);
   const { onTrade, quotes } = useMarketFeed();
 
@@ -94,15 +119,31 @@ export default function CandleChart({ ticker, interval }: Props) {
       scaleMargins: { top: 0.82, bottom: 0 },
     });
 
+    // 이동평균선 5/10/20/60/120
+    for (const p of MA_PERIODS) {
+      maSeriesRef.current.set(
+        p,
+        chart.addSeries(LineSeries, {
+          color: MA_COLORS[p],
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        }),
+      );
+    }
+
     chartRef.current = chart;
     candleSeriesRef.current = candles;
     volumeSeriesRef.current = volume;
+    const maMap = maSeriesRef.current;
 
     return () => {
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
+      maMap.clear();
     };
   }, []);
 
@@ -150,6 +191,9 @@ export default function CandleChart({ ticker, interval }: Props) {
             color: c.close >= c.open ? UP : DOWN,
           })),
         );
+        for (const p of MA_PERIODS) {
+          maSeriesRef.current.get(p)?.setData(sma(json.candles, p));
+        }
         lastCandleRef.current = json.candles.at(-1) ?? null;
         chartRef.current?.timeScale().fitContent();
         setLoadResult({ key, status: "ready" });
@@ -176,8 +220,14 @@ export default function CandleChart({ ticker, interval }: Props) {
     if (!candleSeries || !volumeSeries) return;
 
     const bucketSec = INTERVAL_SECONDS[interval];
-    const bucket = Math.floor(timeMs / 1000 / bucketSec) * bucketSec;
+    const tSec = Math.floor(timeMs / 1000);
     const last = lastCandleRef.current;
+    // 주봉: 거래소 주 시작(월요일)이 Unix 주 경계(목요일)와 달라
+    // 마지막 봉 시작 +7일 이내면 해당 봉에 병합
+    const bucket =
+      interval === "1week" && last && tSec < last.time + bucketSec
+        ? last.time
+        : Math.floor(tSec / bucketSec) * bucketSec;
 
     let next: Candle;
     if (last && bucket === last.time) {
@@ -238,6 +288,13 @@ export default function CandleChart({ ticker, interval }: Props) {
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
+      <div className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10px]">
+        {MA_PERIODS.map((p) => (
+          <span key={p} style={{ color: MA_COLORS[p] }}>
+            MA{p}
+          </span>
+        ))}
+      </div>
       {status === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-[var(--muted)]">
           차트 데이터 불러오는 중…

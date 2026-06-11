@@ -92,7 +92,7 @@ function SelectedHeader({ ticker }: { ticker: string }) {
 
 function Dashboard() {
   const [ticker, setTicker] = useState(DEFAULT_TICKER);
-  const [interval, setInterval] = useState<Interval>("1min");
+  const [interval, setInterval] = useState<Interval>("1day");
   const [view, setView] = useState<View>("stocks");
 
   return (
@@ -189,14 +189,14 @@ function Dashboard() {
               ))}
             </div>
           </div>
-          <div className="min-h-0 flex-1 p-2">
+          <div className="h-[55dvh] p-2 lg:h-auto lg:min-h-0 lg:flex-1">
             <CandleChart ticker={ticker} interval={interval} />
           </div>
           <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
             미국: Finnhub 실시간 체결 + Twelve Data 과거봉 · 한국: KIS 실시간
             현재가(앱키 설정 시) 또는 Yahoo 지연 시세(15~20분) + Yahoo 과거봉.
-            한국 1분봉의 실시간 갱신은 5초 폴링 기반 근사치입니다. 본 화면은 정보
-            제공 목적이며 투자 권유가 아닙니다.
+            이동평균선(5/10/20/60/120)은 확정 봉 기준입니다. 본 화면은 정보 제공
+            목적이며 투자 권유가 아닙니다.
           </p>
         </main>
       </div>

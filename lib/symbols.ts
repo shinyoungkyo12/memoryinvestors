@@ -119,22 +119,30 @@ export function formatPrice(value: number, currency: Currency): string {
 }
 
 /** 차트 지원 인터벌 */
-export const INTERVALS = ["1min", "5min", "15min", "1h", "1day"] as const;
+export const INTERVALS = ["15min", "1h", "1day", "1week"] as const;
 export type Interval = (typeof INTERVALS)[number];
 
 export const INTERVAL_LABELS: Record<Interval, string> = {
-  "1min": "1분",
-  "5min": "5분",
   "15min": "15분",
   "1h": "1시간",
   "1day": "일봉",
+  "1week": "주봉",
 };
 
 /** 인터벌 → 초 단위 (실시간 캔들 집계용) */
 export const INTERVAL_SECONDS: Record<Interval, number> = {
-  "1min": 60,
-  "5min": 300,
   "15min": 900,
   "1h": 3600,
   "1day": 86400,
+  "1week": 604800,
+};
+
+/** 이동평균선 설정 (전 종목 공통) */
+export const MA_PERIODS = [5, 10, 20, 60, 120] as const;
+export const MA_COLORS: Record<number, string> = {
+  5: "#e8d44d",
+  10: "#d8a24a",
+  20: "#f04452",
+  60: "#3182f6",
+  120: "#a16ee8",
 };

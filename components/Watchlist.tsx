@@ -71,15 +71,18 @@ export default function Watchlist({ selected, onSelect }: Props) {
   ];
 
   return (
-    <nav aria-label="관심종목" className="flex flex-col gap-4">
+    <nav
+      aria-label="관심종목"
+      className="flex flex-row gap-3 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0"
+    >
       {groups.map((g) => (
-        <div key={g.label}>
+        <div key={g.label} className="shrink-0 lg:shrink">
           <div className="mb-1 px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
             {g.label}
           </div>
-          <ul className="flex flex-col gap-0.5">
+          <ul className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
             {g.items.map((s) => (
-              <li key={s.ticker}>
+              <li key={s.ticker} className="w-44 shrink-0 lg:w-auto lg:shrink">
                 <SymbolButton
                   s={s}
                   active={s.ticker === selected}

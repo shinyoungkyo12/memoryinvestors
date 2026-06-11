@@ -97,8 +97,15 @@ function InventoryChart({
     );
     chart.timeScale().fitContent();
     return () => {
-      chart.removeSeries(bars);
-      chart.removeSeries(dioLine);
+      // 언마운트 시에는 차트 생성 effect의 cleanup(chart.remove)이 먼저 실행되어
+      // chart가 이미 파괴됨(chartRef=null) → 시리즈 개별 제거 생략
+      if (!chartRef.current) return;
+      try {
+        chart.removeSeries(bars);
+        chart.removeSeries(dioLine);
+      } catch {
+        // 이미 dispose된 경우 무시
+      }
     };
   }, [data, ticker]);
 
@@ -304,7 +311,7 @@ export default function FundamentalsPanel() {
         <ol className="max-h-[28rem] overflow-y-auto p-3">
           {data.hbmEvents.map((e) => (
             <li
-              key={`${e.date}-${e.title.slice(0, 20)}`}
+              key={e.url}
               className="relative border-l border-[var(--border)] pb-4 pl-4 last:pb-1"
             >
               <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--accent)] bg-[var(--bg)]" />

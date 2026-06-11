@@ -134,20 +134,38 @@ export async function GET() {
 
   // HBM 이벤트: 큐레이션(검증) + 자동 수집 병합, url 중복 제거, 최신순
   const curated = hbmJson.events.map((e) => ({ ...e, verified: true }));
-  const curatedUrls = new Set(curated.map((e) => e.url));
-  const auto = (autoEvents ?? [])
-    .filter((e) => !curatedUrls.has(e.url))
-    .map((e) => ({
+  const seenUrls = new Set(curated.map((e) => e.url));
+  const seenTitles = new Set(
+    curated.map((e) => e.title.replace(/\s+/g, " ").trim()),
+  );
+  const auto: typeof curated = [];
+  for (const e of autoEvents ?? []) {
+    const titleKey = e.title.replace(/\s+/g, " ").trim();
+    // url 또는 제목이 동일하면 같은 기사로 간주 (Google News 중복 반환 대응)
+    if (seenUrls.has(e.url) || seenTitles.has(titleKey)) continue;
+    seenUrls.add(e.url);
+    seenTitles.add(titleKey);
+    auto.push({
       date: e.event_date,
       companies: e.companies ?? [],
       title: e.title,
       source: e.source ?? "",
       url: e.url,
       verified: false,
-    }));
-  const hbmEvents = [...curated, ...auto].sort((a, b) =>
-    b.date.localeCompare(a.date),
-  );
+    });
+  }
+  // 동일 기사 중복 제거: 정규화 제목+날짜 기준 (검증 항목 우선, 그다음 먼저 온 것)
+  const merged = [...curated, ...auto];
+  const seenKeys = new Set<string>();
+  const hbmEvents = merged
+    .sort((a, b) => Number(b.verified) - Number(a.verified))
+    .filter((e) => {
+      const key = `${e.date}|${e.title.replace(/\s+/g, "").slice(0, 30)}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const data: FundamentalsResponse = { inventory, nvidia, hbmEvents };
   cache = { at: Date.now(), data };

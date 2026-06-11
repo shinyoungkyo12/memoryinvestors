@@ -28,20 +28,18 @@ interface TwelveDataResponse {
 
 /** 인터벌별 캐시 TTL(ms) */
 const CACHE_TTL: Record<Interval, number> = {
-  "1min": 30_000,
-  "5min": 150_000,
   "15min": 450_000,
   "1h": 1_800_000,
   "1day": 3_600_000,
+  "1week": 21_600_000,
 };
 
 /** US: 인터벌별 요청 봉 개수 (정규장 1일 = 390분 기준) */
 const OUTPUT_SIZE: Record<Interval, number> = {
-  "1min": 780,
-  "5min": 780,
-  "15min": 520,
-  "1h": 500,
-  "1day": 500,
+  "15min": 700, // MA120 산출 여유 포함
+  "1h": 700,
+  "1day": 750, // 약 3년
+  "1week": 300, // 약 6년
 };
 
 const cache = new Map<string, { at: number; data: Candle[] }>();

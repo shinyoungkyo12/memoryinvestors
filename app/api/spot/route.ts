@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import historyJson from "@/data/spot-history.json";
 
 /**
  * GET /api/spot
@@ -76,6 +77,14 @@ export async function GET() {
       price: Number(r.price),
       changePct: r.change_pct === null ? null : Number(r.change_pct),
     });
+  }
+
+  // 월별 고정거래가 시드(과거 보도치) 병합 — 일별 현물가와 별도 품목으로 표시
+  for (const h of historyJson.items) {
+    const pts = [...h.points]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((p) => ({ date: p.date, price: p.price, changePct: null }));
+    if (pts.length > 0) byItem.set(h.item, pts);
   }
 
   const series: SpotSeries[] = [...byItem.entries()]

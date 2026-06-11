@@ -14,11 +14,10 @@ const UA =
 
 /** 내부 인터벌 → Yahoo (interval, range) 매핑 */
 const YAHOO_PARAMS: Record<Interval, { interval: string; range: string }> = {
-  "1min": { interval: "1m", range: "5d" }, // Yahoo 1m은 최대 7일
-  "5min": { interval: "5m", range: "1mo" },
   "15min": { interval: "15m", range: "1mo" },
-  "1h": { interval: "60m", range: "3mo" },
+  "1h": { interval: "60m", range: "6mo" },
   "1day": { interval: "1d", range: "2y" },
+  "1week": { interval: "1wk", range: "5y" },
 };
 
 interface YahooChartResponse {
