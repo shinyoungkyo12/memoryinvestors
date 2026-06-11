@@ -27,12 +27,12 @@ const FundamentalsPanel = dynamic(
   { ssr: false },
 );
 
-const CorrelationPanel = dynamic(
-  () => import("@/components/CorrelationPanel"),
+const MarketSharePanel = dynamic(
+  () => import("@/components/MarketSharePanel"),
   { ssr: false },
 );
 
-type View = "stocks" | "spot" | "fundamentals" | "correlation";
+type View = "stocks" | "spot" | "fundamentals" | "share";
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
@@ -120,7 +120,7 @@ function Dashboard() {
                 ["stocks", "실시간 차트"],
                 ["spot", "DRAM 현물가"],
                 ["fundamentals", "펀더멘털"],
-                ["correlation", "상관분석"],
+                ["share", "점유율"],
               ] as [View, string][]
             ).map(([v, label]) => (
               <button
@@ -152,9 +152,9 @@ function Dashboard() {
         <div className="flex-1 p-3">
           <FundamentalsPanel />
         </div>
-      ) : view === "correlation" ? (
+      ) : view === "share" ? (
         <div className="flex-1 p-3">
-          <CorrelationPanel />
+          <MarketSharePanel />
         </div>
       ) : (
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row">

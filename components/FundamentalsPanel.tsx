@@ -10,6 +10,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { FundamentalsResponse } from "@/app/api/fundamentals/route";
+import type { NewsItem } from "@/app/api/hbm-news/route";
 
 /**
  * 펀더멘털 패널 — 사진 체크리스트의 ②③④ 항목
@@ -153,6 +154,8 @@ export default function FundamentalsPanel() {
   const [data, setData] = useState<FundamentalsResponse | null>(null);
   const [error, setError] = useState("");
   const [ticker, setTicker] = useState<string>("MU");
+  const [news, setNews] = useState<NewsItem[] | null>(null);
+  const [newsError, setNewsError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +170,25 @@ export default function FundamentalsPanel() {
         else setData(json);
       } catch {
         if (!cancelled) setError("네트워크 오류가 발생했습니다.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** HBM 자동 뉴스 피드 (Google News RSS) */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/hbm-news");
+        const json = (await res.json()) as { items?: NewsItem[]; error?: string };
+        if (cancelled) return;
+        if (json.items) setNews(json.items);
+        else setNewsError(json.error ?? "뉴스를 불러오지 못했습니다.");
+      } catch {
+        if (!cancelled) setNewsError("뉴스 피드 네트워크 오류");
       }
     })();
     return () => {
@@ -269,13 +291,13 @@ export default function FundamentalsPanel() {
         </p>
       </section>
 
-      {/* ③ HBM 수주 현황 타임라인 */}
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] xl:col-span-2">
+      {/* ③ HBM 수주 현황 타임라인 (수동 큐레이션) */}
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
-            HBM 수주 현황 타임라인
+            HBM 수주 타임라인
             <span className="ml-2 font-normal text-[var(--muted)]">
-              data/hbm-events.json에 항목 추가 → push 하면 갱신
+              큐레이션 · data/hbm-events.json
             </span>
           </h2>
         </div>
@@ -317,6 +339,52 @@ export default function FundamentalsPanel() {
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* ③-b HBM 관련 최신기사 (자동 수집) */}
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
+        <div className="border-b border-[var(--border)] px-4 py-3">
+          <h2 className="font-mono text-sm font-bold text-[var(--text)]">
+            HBM 관련 최신기사
+            <span className="ml-2 font-normal text-[var(--muted)]">
+              자동 수집 · Google News · 30분 갱신
+            </span>
+          </h2>
+        </div>
+        <ul className="max-h-[28rem] overflow-y-auto p-3">
+          {news === null && !newsError && (
+            <li className="py-8 text-center text-sm text-[var(--muted)]">
+              뉴스 불러오는 중…
+            </li>
+          )}
+          {newsError && (
+            <li className="py-8 text-center text-sm text-[var(--muted)]">
+              {newsError}
+            </li>
+          )}
+          {news?.map((n) => (
+            <li
+              key={n.link}
+              className="border-b border-[var(--border)] py-2.5 last:border-0"
+            >
+              <a
+                href={n.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-sm leading-snug text-[var(--text)] underline-offset-2 hover:text-[var(--accent)] hover:underline"
+              >
+                {n.title}
+              </a>
+              <div className="mt-1 font-mono text-[11px] text-[var(--muted)]">
+                {n.source} · {n.publishedAt}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
+          자동 피드는 노이즈가 섞일 수 있습니다. 중요한 수주 이벤트는 검증 후
+          좌측 타임라인(JSON)에 추가하세요.
+        </p>
       </section>
     </div>
   );

@@ -1,0 +1,48 @@
+{
+  "_설명": "메모리 시장 점유율 (매출액 기준). 카운터포인트리서치 분기 발표 시 quarters 배열에 1개 분기 추가 → git push.",
+  "_주의": "추정치 입력 금지 — 발표된 수치만 기입",
+  "segments": [
+    {
+      "id": "DRAM",
+      "nameKo": "D램",
+      "updated": "2026-06-10",
+      "source": "카운터포인트리서치 메모리 시장 트래커, 2026년 1분기",
+      "sourceUrl": "https://korea.counterpointresearch.com/global-dram-and-hbm-market-share-quarterly/",
+      "quarters": [
+        { "label": "1Q25", "shares": { "삼성전자": 34, "SK하이닉스": 36, "마이크론": 25, "CXMT": 3, "난야": 1 } },
+        { "label": "2Q25", "shares": { "삼성전자": 33, "SK하이닉스": 39, "마이크론": 22, "CXMT": 4, "난야": 1 } },
+        { "label": "3Q25", "shares": { "삼성전자": 33, "SK하이닉스": 33, "마이크론": 26, "CXMT": 6, "난야": 2 } },
+        { "label": "4Q25", "shares": { "삼성전자": 36, "SK하이닉스": 32, "마이크론": 22, "CXMT": 8, "난야": 2 } },
+        { "label": "1Q26", "shares": { "삼성전자": 38, "SK하이닉스": 29, "마이크론": 22, "CXMT": 8, "난야": 2 } }
+      ]
+    },
+    {
+      "id": "HBM",
+      "nameKo": "HBM",
+      "updated": "2026-06-10",
+      "source": "카운터포인트리서치 메모리 시장 트래커, 2026년 1분기",
+      "sourceUrl": "https://korea.counterpointresearch.com/global-dram-and-hbm-market-share-quarterly/",
+      "quarters": [
+        { "label": "1Q25", "shares": { "SK하이닉스": 69, "삼성전자": 13, "마이크론": 18 } },
+        { "label": "2Q25", "shares": { "SK하이닉스": 64, "삼성전자": 15, "마이크론": 21 } },
+        { "label": "3Q25", "shares": { "SK하이닉스": 56, "삼성전자": 23, "마이크론": 21 } },
+        { "label": "4Q25", "shares": { "SK하이닉스": 57, "삼성전자": 22, "마이크론": 21 } },
+        { "label": "1Q26", "shares": { "SK하이닉스": 58, "삼성전자": 21, "마이크론": 21 } }
+      ]
+    },
+    {
+      "id": "NAND",
+      "nameKo": "낸드플래시",
+      "updated": "2026-06-04",
+      "source": "카운터포인트리서치 낸드 메모리 시장 트래커, 2026년 1분기",
+      "sourceUrl": "https://korea.counterpointresearch.com/global-nand-memory-market-share-quarterly/",
+      "quarters": [
+        { "label": "1Q25", "shares": { "삼성전자": 31, "SK하이닉스": 17, "키옥시아": 17, "마이크론": 15, "샌디스크": 13, "YMTC": 8 } },
+        { "label": "2Q25", "shares": { "삼성전자": 32, "SK하이닉스": 20, "키옥시아": 14, "마이크론": 13, "샌디스크": 12, "YMTC": 9 } },
+        { "label": "3Q25", "shares": { "삼성전자": 32, "SK하이닉스": 18, "키옥시아": 16, "마이크론": 12, "샌디스크": 12, "YMTC": 10 } },
+        { "label": "4Q25", "shares": { "삼성전자": 27, "SK하이닉스": 22, "키옥시아": 15, "마이크론": 13, "샌디스크": 13, "YMTC": 11 } },
+        { "label": "1Q26", "shares": { "삼성전자": 29, "SK하이닉스": 18, "키옥시아": 14, "YMTC": 13 } }
+      ]
+    }
+  ]
+}
