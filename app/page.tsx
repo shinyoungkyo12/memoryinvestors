@@ -18,6 +18,12 @@ const CandleChart = dynamic(() => import("@/components/CandleChart"), {
   ssr: false,
 });
 
+const SpotPanel = dynamic(() => import("@/components/SpotPanel"), {
+  ssr: false,
+});
+
+type View = "stocks" | "spot";
+
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
   kis: "LIVE·KIS",
@@ -77,6 +83,7 @@ function SelectedHeader({ ticker }: { ticker: string }) {
 function Dashboard() {
   const [ticker, setTicker] = useState(DEFAULT_TICKER);
   const [interval, setInterval] = useState<Interval>("1min");
+  const [view, setView] = useState<View>("stocks");
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -90,15 +97,46 @@ function Dashboard() {
             {"//INVESTORS"}
           </span>
           <span className="ml-2 hidden text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] sm:inline">
-            메모리 반도체 모니터 · Phase 2
+            메모리 반도체 모니터 · Phase 3
           </span>
         </div>
-        <ConnectionDot />
+        <div className="flex items-center gap-3">
+          <nav
+            aria-label="화면 전환"
+            className="flex overflow-hidden rounded-md border border-[var(--border)]"
+          >
+            {(
+              [
+                ["stocks", "실시간 차트"],
+                ["spot", "DRAM 현물가"],
+              ] as [View, string][]
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-current={view === v ? "page" : undefined}
+                className={`px-3 py-1.5 font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                  view === v
+                    ? "bg-[var(--panel2)] font-semibold text-[var(--accent)]"
+                    : "text-[var(--muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <ConnectionDot />
+        </div>
       </header>
 
       <TickerTape />
 
       {/* 본문 */}
+      {view === "spot" ? (
+        <div className="flex-1 p-3">
+          <SpotPanel />
+        </div>
+      ) : (
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row">
         {/* 관심종목 */}
         <aside className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2 lg:w-64">
@@ -142,6 +180,7 @@ function Dashboard() {
           </p>
         </main>
       </div>
+      )}
     </div>
   );
 }

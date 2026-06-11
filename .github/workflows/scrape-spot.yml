@@ -1,0 +1,26 @@
+name: DRAM 현물가 수집
+
+on:
+  schedule:
+    # UTC 기준 → KST 10:30 / 14:30 / 17:30 (평일)
+    - cron: "30 1 * * 1-5"
+    - cron: "30 5 * * 1-5"
+    - cron: "30 8 * * 1-5"
+  workflow_dispatch: # 수동 실행 버튼
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 현물가 수집 및 저장
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/scrape-spot.mjs

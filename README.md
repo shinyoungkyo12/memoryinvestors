@@ -2,13 +2,10 @@
 
 메모리 반도체(DRAM/HBM/NAND) 투자 모니터링 대시보드.
 
-**Phase 1 (현재):** 미국 메모리 종목 실시간 차트
-- 종목: MU(마이크론) · SNDK(샌디스크) · STX(씨게이트) · WDC(웨스턴디지털) · DRAM(Roundhill Memory ETF)
-- 실시간 체결: Finnhub WebSocket (클라이언트 직접 구독)
-- 과거 봉(1분~일봉): Twelve Data (서버 프록시 + 캐싱)
-- 차트: TradingView Lightweight Charts v5
-
-**로드맵:** Phase 2 한국 종목(KIS API) → Phase 3 DRAM 현물가격 수집 → Phase 4 재고/엔비디아 가이던스 → Phase 5 상관관계 분석
+**Phase 1** ✅ 미국 메모리 종목 실시간 차트 (MU·SNDK·STX·WDC·DRAM ETF)
+**Phase 2** ✅ 한국 종목 (삼성전자·SK하이닉스·442580·0181B0) — KIS 실시간 / Yahoo 폴백
+**Phase 3** ✅ DRAM 현물가격 자동 수집 + 추이 차트 (DRAMeXchange → GitHub Actions → Supabase)
+**로드맵:** Phase 4 재고/엔비디아 가이던스 → Phase 5 현물가-주가 상관관계 분석
 
 ---
 
@@ -16,35 +13,50 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # 키 2개 입력
+cp .env.example .env.local   # 키 입력
 npm run dev                   # http://localhost:3000
 ```
 
-API 키 발급 (둘 다 무료):
-| 키 | 발급처 | 노출 범위 |
+| 환경변수 | 발급처 | 용도 |
 |---|---|---|
-| `NEXT_PUBLIC_FINNHUB_API_KEY` | https://finnhub.io/register | 클라이언트 (WS 특성상 불가피) |
-| `TWELVE_DATA_API_KEY` | https://twelvedata.com | 서버 전용 |
+| `NEXT_PUBLIC_FINNHUB_API_KEY` | finnhub.io (무료) | 미국 실시간 체결 |
+| `TWELVE_DATA_API_KEY` | twelvedata.com (무료) | 미국 과거 봉 |
+| `KIS_APP_KEY` / `KIS_APP_SECRET` | apiportal.koreainvestment.com (선택) | 한국 실시간 현재가. 미설정 시 Yahoo 지연시세 |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | supabase.com (무료) | DRAM 현물가 저장소 |
 
-## 2. GitHub 업로드
+## 2. DRAM 현물가 수집 설정 (Phase 3)
 
-```bash
-git init
-git add .
-git commit -m "Phase 1: 미국 메모리 종목 실시간 차트"
-git branch -M main
-git remote add origin https://github.com/<your-id>/memoryinvestors.git
-git push -u origin main
+### 2-1. Supabase 준비
+1. https://supabase.com → New project (무료)
+2. SQL Editor → `supabase/schema.sql` 내용 붙여넣고 **Run**
+3. Project Settings → API → `URL`과 `service_role` 키 복사
+
+### 2-2. GitHub Secrets 등록
+repo → Settings → Secrets and variables → Actions → New repository secret
+```
+SUPABASE_URL              = https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY = (service_role 키)
 ```
 
-## 3. Vercel 배포 (push 시 자동 재배포)
+### 2-3. 첫 수집 실행
+repo → Actions 탭 → "DRAM 현물가 수집" → **Run workflow**
+이후 평일 KST 10:30 / 14:30 / 17:30 자동 수집.
 
-1. https://vercel.com/new → GitHub `memoryinvestors` repo Import
-2. **Environment Variables**에 `.env.local`의 키 2개 등록
-3. Deploy — 이후 `main` 브랜치에 push 할 때마다 자동 배포됩니다
+### 2-4. Vercel 환경변수 추가
+Vercel → Settings → Environment Variables에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 추가 → Redeploy
 
-## 알려진 제약
+### 로컬에서 파싱 테스트
+```bash
+npm run scrape:dry   # DB 저장 없이 파싱 결과만 출력
+```
 
-- Twelve Data 무료: 분당 8회 / 일 800회 → 서버 캐시로 완화했으나 인터벌을 빠르게 연타하면 일시 지연 가능 (만료 캐시 폴백 동작)
-- Finnhub 무료 WS: 미국 거래소 체결만 제공 → 한국 종목은 Phase 2에서 KIS API로 처리
-- 장 마감 시간에는 WS 체결이 없어 REST 스냅샷(60초 주기)으로 표시됨
+## 3. 배포
+
+`git push` → Vercel 자동 재배포.
+
+## 알려진 제약 / 주의
+
+- DRAMeXchange는 비공식 스크래핑 — 사이트 구조 변경 시 수집 실패 가능 (`npm run scrape:dry`로 진단)
+- 수집된 현물가의 **공개 재게시는 저작권 이슈 가능성** 있음 → 기본 표시를 지수화(첫날=100)로 설정. 개인 연구용 사용 권장
+- Yahoo KRX 시세는 15~20분 지연 / 신규상장 ETF(0181B0)는 Yahoo 미지원 가능 → KIS 키 필요
+- Twelve Data 무료: 분당 8회 (서버 캐시로 완화)
