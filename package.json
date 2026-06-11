@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "scrape": "node scripts/scrape-spot.mjs",
-    "scrape:dry": "node scripts/scrape-spot.mjs --dry-run"
+    "scrape": "node --env-file=.env.local scripts/scrape-spot.mjs",
+    "scrape:dry": "node --env-file=.env.local scripts/scrape-spot.mjs --dry-run"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
