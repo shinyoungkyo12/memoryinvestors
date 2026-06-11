@@ -297,7 +297,7 @@ export default function FundamentalsPanel() {
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
             HBM 수주 타임라인
             <span className="ml-2 font-normal text-[var(--muted)]">
-              큐레이션 · data/hbm-events.json
+              검증(큐레이션) + 자동(뉴스 분류, 하루 3회)
             </span>
           </h2>
         </div>
@@ -311,6 +311,15 @@ export default function FundamentalsPanel() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs tabular-nums text-[var(--muted)]">
                   {e.date}
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
+                    e.verified
+                      ? "border border-[var(--accent)]/50 text-[var(--accent)]"
+                      : "border border-[var(--border)] text-[var(--muted)]"
+                  }`}
+                >
+                  {e.verified ? "검증" : "자동"}
                 </span>
                 {e.companies.map((c) => (
                   <span

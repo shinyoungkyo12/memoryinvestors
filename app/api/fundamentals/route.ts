@@ -39,6 +39,8 @@ export interface FundamentalsResponse {
     title: string;
     source: string;
     url: string;
+    /** true = 수동 검증(큐레이션), false = 자동 수집 */
+    verified: boolean;
   }[];
 }
 
@@ -69,12 +71,21 @@ export async function GET() {
     );
   }
 
-  const [invRows, revRows] = await Promise.all([
+  const [invRows, revRows, autoEvents] = await Promise.all([
     supabaseSelect<InventoryRow>(
       "inventory?select=ticker,fiscal_end,inventory_usd,cogs_usd,dio&order=fiscal_end.asc&limit=2000",
     ),
     supabaseSelect<RevenueRow>(
       "nvda_revenue?select=fiscal_end,revenue_usd&order=fiscal_end.asc&limit=200",
+    ),
+    supabaseSelect<{
+      event_date: string;
+      title: string;
+      source: string | null;
+      url: string;
+      companies: string[];
+    }>(
+      "news_events?select=event_date,title,source,url,companies&order=event_date.desc&limit=60",
     ),
   ]);
 
@@ -121,8 +132,20 @@ export async function GET() {
     .sort((a, b) => a.fiscalEnd.localeCompare(b.fiscalEnd))
     .slice(-16); // 최근 4년
 
-  // HBM 이벤트: 최신순
-  const hbmEvents = [...hbmJson.events].sort((a, b) =>
+  // HBM 이벤트: 큐레이션(검증) + 자동 수집 병합, url 중복 제거, 최신순
+  const curated = hbmJson.events.map((e) => ({ ...e, verified: true }));
+  const curatedUrls = new Set(curated.map((e) => e.url));
+  const auto = (autoEvents ?? [])
+    .filter((e) => !curatedUrls.has(e.url))
+    .map((e) => ({
+      date: e.event_date,
+      companies: e.companies ?? [],
+      title: e.title,
+      source: e.source ?? "",
+      url: e.url,
+      verified: false,
+    }));
+  const hbmEvents = [...curated, ...auto].sort((a, b) =>
     b.date.localeCompare(a.date),
   );
 

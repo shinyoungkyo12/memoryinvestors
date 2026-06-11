@@ -10,7 +10,7 @@ import * as cheerio from "cheerio";
 
 const RSS_URL =
   "https://news.google.com/rss/search?q=" +
-  encodeURIComponent('HBM (수주 OR 공급계약 OR 완판 OR "sold out")') +
+  encodeURIComponent('HBM OR DRAM OR D램 OR HBF OR "AI 메모리" OR 메모리반도체') +
   "&hl=ko&gl=KR&ceid=KR:ko";
 
 const UA =

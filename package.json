@@ -10,7 +10,9 @@
     "scrape": "node --env-file=.env.local scripts/scrape-spot.mjs",
     "scrape:dry": "node --env-file=.env.local scripts/scrape-spot.mjs --dry-run",
     "fundamentals": "node --env-file=.env.local scripts/collect-fundamentals.mjs",
-    "fundamentals:dry": "node --env-file=.env.local scripts/collect-fundamentals.mjs --dry-run"
+    "fundamentals:dry": "node --env-file=.env.local scripts/collect-fundamentals.mjs --dry-run",
+    "news": "node --env-file=.env.local scripts/collect-news-events.mjs",
+    "news:dry": "node --env-file=.env.local scripts/collect-news-events.mjs --dry-run"
   },
   "dependencies": {
     "cheerio": "^1.2.0",

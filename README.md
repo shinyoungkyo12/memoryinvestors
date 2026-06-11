@@ -62,6 +62,12 @@ npm run scrape:dry   # DB 저장 없이 파싱 결과만 출력
    - 별도 키 불필요 (SEC EDGAR는 무료 공개 API)
 3. 로컬 테스트: `npm run fundamentals:dry`
 
+### 수주 타임라인 자동 수집 (상시)
+1. Supabase SQL Editor에서 `supabase/schema-news-events.sql` 실행
+2. 이후 평일 하루 3회(현물가 수집과 동일 스케줄) 메모리 수주 뉴스가 자동으로 타임라인에 추가됩니다 — "자동" 배지
+3. 로컬 테스트: `npm run news:dry`
+4. 자동 항목 중 중요 이벤트는 검증 후 `data/hbm-events.json`으로 승격 — "검증" 배지
+
 ### 수동 관리 데이터 (분기 1회 수준)
 - `data/nvda-guidance.json` — 엔비디아 실적발표 때 다음 분기 가이던스 1줄 추가
 - `data/hbm-events.json` — HBM 수주 뉴스 나올 때 항목 추가
