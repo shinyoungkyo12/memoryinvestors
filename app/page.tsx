@@ -27,7 +27,12 @@ const FundamentalsPanel = dynamic(
   { ssr: false },
 );
 
-type View = "stocks" | "spot" | "fundamentals";
+const CorrelationPanel = dynamic(
+  () => import("@/components/CorrelationPanel"),
+  { ssr: false },
+);
+
+type View = "stocks" | "spot" | "fundamentals" | "correlation";
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
@@ -102,7 +107,7 @@ function Dashboard() {
             {"//INVESTORS"}
           </span>
           <span className="ml-2 hidden text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] sm:inline">
-            메모리 반도체 모니터 · Phase 4
+            메모리 반도체 모니터
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -115,6 +120,7 @@ function Dashboard() {
                 ["stocks", "실시간 차트"],
                 ["spot", "DRAM 현물가"],
                 ["fundamentals", "펀더멘털"],
+                ["correlation", "상관분석"],
               ] as [View, string][]
             ).map(([v, label]) => (
               <button
@@ -145,6 +151,10 @@ function Dashboard() {
       ) : view === "fundamentals" ? (
         <div className="flex-1 p-3">
           <FundamentalsPanel />
+        </div>
+      ) : view === "correlation" ? (
+        <div className="flex-1 p-3">
+          <CorrelationPanel />
         </div>
       ) : (
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row">
