@@ -10,9 +10,9 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { INTERVAL_SECONDS, type Interval } from "@/lib/symbols";
+import { getSymbol, INTERVAL_SECONDS, type Interval } from "@/lib/symbols";
 import { useMarketFeed } from "@/lib/market-feed";
-import type { Candle } from "@/app/api/candles/route";
+import type { Candle } from "@/lib/types";
 
 /** 한국 시장 관례 색상: 상승=적색, 하락=청색 */
 const UP = "#f0445280";
@@ -31,7 +31,10 @@ export default function CandleChart({ ticker, interval }: Props) {
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const lastCandleRef = useRef<Candle | null>(null);
-  const { onTrade } = useMarketFeed();
+  const { onTrade, quotes } = useMarketFeed();
+
+  const symbol = getSymbol(ticker);
+  const isKRW = symbol?.currency === "KRW";
 
   /** 로드 상태: 현재 키와 일치하는 결과가 없으면 loading으로 파생 */
   const loadKey = `${ticker}:${interval}`;
@@ -103,6 +106,15 @@ export default function CandleChart({ ticker, interval }: Props) {
     };
   }, []);
 
+  /** 통화별 가격 표기 (원화: 정수, 달러: 소수 2자리) */
+  useEffect(() => {
+    candleSeriesRef.current?.applyOptions({
+      priceFormat: isKRW
+        ? { type: "price", precision: 0, minMove: 1 }
+        : { type: "price", precision: 2, minMove: 0.01 },
+    });
+  }, [isKRW, ticker]);
+
   /** 과거 캔들 로드 (종목/인터벌 변경 시) */
   useEffect(() => {
     let cancelled = false;
@@ -157,57 +169,71 @@ export default function CandleChart({ ticker, interval }: Props) {
     };
   }, [ticker, interval]);
 
-  /** 실시간 체결 → 현재 봉 집계 */
-  useEffect(() => {
+  /** 공통: 신규 가격 1건을 현재 봉에 반영 */
+  function applyTick(price: number, volume: number, timeMs: number) {
+    const candleSeries = candleSeriesRef.current;
+    const volumeSeries = volumeSeriesRef.current;
+    if (!candleSeries || !volumeSeries) return;
+
     const bucketSec = INTERVAL_SECONDS[interval];
+    const bucket = Math.floor(timeMs / 1000 / bucketSec) * bucketSec;
+    const last = lastCandleRef.current;
 
-    const unsubscribe = onTrade(ticker, (trade) => {
-      const candleSeries = candleSeriesRef.current;
-      const volumeSeries = volumeSeriesRef.current;
-      if (!candleSeries || !volumeSeries) return;
+    let next: Candle;
+    if (last && bucket === last.time) {
+      next = {
+        ...last,
+        high: Math.max(last.high, price),
+        low: Math.min(last.low, price),
+        close: price,
+        volume: last.volume + volume,
+      };
+    } else if (!last || bucket > last.time) {
+      next = {
+        time: bucket,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume,
+      };
+    } else {
+      return; // 과거 버킷(지연 도착)은 무시
+    }
 
-      const bucket = Math.floor(trade.time / 1000 / bucketSec) * bucketSec;
-      const last = lastCandleRef.current;
-
-      let next: Candle;
-      if (last && bucket === last.time) {
-        next = {
-          ...last,
-          high: Math.max(last.high, trade.price),
-          low: Math.min(last.low, trade.price),
-          close: trade.price,
-          volume: last.volume + trade.volume,
-        };
-      } else if (!last || bucket > last.time) {
-        next = {
-          time: bucket,
-          open: trade.price,
-          high: trade.price,
-          low: trade.price,
-          close: trade.price,
-          volume: trade.volume,
-        };
-      } else {
-        return; // 과거 버킷 체결(지연 도착)은 무시
-      }
-
-      lastCandleRef.current = next;
-      candleSeries.update({
-        time: next.time as UTCTimestamp,
-        open: next.open,
-        high: next.high,
-        low: next.low,
-        close: next.close,
-      });
-      volumeSeries.update({
-        time: next.time as UTCTimestamp,
-        value: next.volume,
-        color: next.close >= next.open ? UP : DOWN,
-      });
+    lastCandleRef.current = next;
+    candleSeries.update({
+      time: next.time as UTCTimestamp,
+      open: next.open,
+      high: next.high,
+      low: next.low,
+      close: next.close,
     });
+    volumeSeries.update({
+      time: next.time as UTCTimestamp,
+      value: next.volume,
+      color: next.close >= next.open ? UP : DOWN,
+    });
+  }
 
+  /** 미국: 실시간 체결 → 현재 봉 집계 */
+  useEffect(() => {
+    if (symbol?.market !== "US") return;
+    const unsubscribe = onTrade(ticker, (trade) => {
+      applyTick(trade.price, trade.volume, trade.time);
+    });
     return unsubscribe;
-  }, [ticker, interval, onTrade]);
+    // applyTick은 ref 기반이라 의존성 제외 안전
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, interval, onTrade, symbol?.market]);
+
+  /** 한국: 5초 폴링 시세 → 현재 봉 갱신 (거래량은 시세 API에 없어 0 가산) */
+  const krQuote = symbol?.market === "KR" ? quotes[ticker] : undefined;
+  useEffect(() => {
+    if (symbol?.market !== "KR" || !krQuote || status !== "ready") return;
+    applyTick(krQuote.price, 0, krQuote.updatedAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [krQuote?.price, krQuote?.updatedAt, symbol?.market, status]);
 
   return (
     <div className="relative h-full w-full">
@@ -221,7 +247,7 @@ export default function CandleChart({ ticker, interval }: Props) {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-sm">
           <span className="text-[var(--muted)]">{errorMsg}</span>
           <span className="text-xs text-[var(--muted)]">
-            .env.local의 API 키와 Twelve Data 호출 한도(분당 8회)를 확인하세요.
+            잠시 후 다른 인터벌을 눌러 다시 시도해 보세요.
           </span>
         </div>
       )}

@@ -4,18 +4,26 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import {
   DEFAULT_TICKER,
+  formatPrice,
   getSymbol,
   INTERVALS,
   INTERVAL_LABELS,
   type Interval,
 } from "@/lib/symbols";
-import { MarketFeedProvider, useMarketFeed } from "@/lib/market-feed";
+import { MarketFeedProvider, useMarketFeed, type Quote } from "@/lib/market-feed";
 import Watchlist from "@/components/Watchlist";
 import TickerTape from "@/components/TickerTape";
 
 const CandleChart = dynamic(() => import("@/components/CandleChart"), {
   ssr: false,
 });
+
+const SOURCE_LABEL: Record<Quote["source"], string> = {
+  ws: "LIVE",
+  kis: "LIVE·KIS",
+  rest: "SNAPSHOT",
+  yahoo: "지연시세",
+};
 
 function ConnectionDot() {
   const { connected } = useMarketFeed();
@@ -26,7 +34,7 @@ function ConnectionDot() {
           connected ? "bg-[var(--live)]" : "bg-[var(--muted)]"
         }`}
       />
-      {connected ? "실시간 연결됨" : "연결 대기"}
+      {connected ? "US 실시간 연결됨" : "US 연결 대기"}
     </span>
   );
 }
@@ -39,16 +47,16 @@ function SelectedHeader({ ticker }: { ticker: string }) {
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-      <h1 className="font-mono text-xl font-bold tracking-tight text-[var(--text)]">
-        {ticker}
-        <span className="ml-2 text-sm font-normal text-[var(--muted)]">
-          {info?.nameKo} · {info?.nameEn}
+      <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+        {info?.nameKo}
+        <span className="ml-2 font-mono text-sm font-normal text-[var(--muted)]">
+          {ticker} · {info?.nameEn}
         </span>
       </h1>
-      {q && (
+      {q && info && (
         <div className="flex items-baseline gap-2 font-mono tabular-nums">
           <span className="text-2xl font-bold text-[var(--text)]">
-            ${q.price.toFixed(2)}
+            {formatPrice(q.price, info.currency)}
           </span>
           <span
             className={`text-sm font-semibold ${
@@ -58,7 +66,7 @@ function SelectedHeader({ ticker }: { ticker: string }) {
             {isUp ? "▲" : "▼"} {Math.abs(q.changePct).toFixed(2)}%
           </span>
           <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
-            {q.source === "ws" ? "live" : "snapshot"}
+            {SOURCE_LABEL[q.source]}
           </span>
         </div>
       )}
@@ -82,7 +90,7 @@ function Dashboard() {
             {"//INVESTORS"}
           </span>
           <span className="ml-2 hidden text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] sm:inline">
-            메모리 반도체 모니터 · Phase 1
+            메모리 반도체 모니터 · Phase 2
           </span>
         </div>
         <ConnectionDot />
@@ -93,7 +101,7 @@ function Dashboard() {
       {/* 본문 */}
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row">
         {/* 관심종목 */}
-        <aside className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2 lg:w-60">
+        <aside className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2 lg:w-64">
           <Watchlist selected={ticker} onSelect={setTicker} />
         </aside>
 
@@ -127,9 +135,10 @@ function Dashboard() {
             <CandleChart ticker={ticker} interval={interval} />
           </div>
           <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
-            시세: Finnhub 실시간 체결(WebSocket) · 과거 봉: Twelve Data. 무료 API
-            한도(분당 8회)로 인터벌을 빠르게 전환하면 일시적으로 로드가 지연될 수
-            있습니다. 본 화면은 정보 제공 목적이며 투자 권유가 아닙니다.
+            미국: Finnhub 실시간 체결 + Twelve Data 과거봉 · 한국: KIS 실시간
+            현재가(앱키 설정 시) 또는 Yahoo 지연 시세(15~20분) + Yahoo 과거봉.
+            한국 1분봉의 실시간 갱신은 5초 폴링 기반 근사치입니다. 본 화면은 정보
+            제공 목적이며 투자 권유가 아닙니다.
           </p>
         </main>
       </div>

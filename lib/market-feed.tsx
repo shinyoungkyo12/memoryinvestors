@@ -9,15 +9,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { SYMBOLS } from "@/lib/symbols";
+import { US_SYMBOLS } from "@/lib/symbols";
+import type { QuoteSnapshot } from "@/lib/types";
 
 /**
- * Finnhub 실시간 피드
- * - WebSocket(wss://ws.finnhub.io) 으로 전 종목 체결(trade) 구독
- * - 장 마감/연결 전 초기 시세는 REST /quote 로 확보 (60초 주기 폴백 갱신)
+ * 통합 시세 피드
+ * - 미국: Finnhub WebSocket 체결 스트림 (+ REST /quote 폴백 60초)
+ * - 한국: /api/kr-quotes 폴링 5초 (KIS 실시간 or Yahoo 지연 — 서버가 결정)
  *
- * 주의: 브라우저 WebSocket 특성상 Finnhub 키는 클라이언트에 노출됩니다(NEXT_PUBLIC_).
- * Finnhub 무료 키는 호출량 제한만 있으므로 키 자체를 무료 전용으로 발급해 사용하세요.
+ * 주의: Finnhub 키는 브라우저 WebSocket 특성상 클라이언트에 노출됩니다(NEXT_PUBLIC_).
+ * 무료 전용 키를 사용하세요. KIS 키는 서버에만 존재합니다.
  */
 
 export interface Trade {
@@ -32,8 +33,8 @@ export interface Quote {
   price: number;
   prevClose: number;
   changePct: number;
-  /** "ws" = 실시간 체결 반영, "rest" = REST 스냅샷 */
-  source: "ws" | "rest";
+  /** ws=실시간 체결, rest=스냅샷, kis=KIS 실시간, yahoo=지연 시세 */
+  source: "ws" | "rest" | "kis" | "yahoo";
   updatedAt: number;
 }
 
@@ -41,15 +42,16 @@ type TradeListener = (t: Trade) => void;
 
 interface MarketFeedValue {
   quotes: Record<string, Quote>;
-  /** WS 연결 상태 */
+  /** 미국 WS 연결 상태 */
   connected: boolean;
-  /** 특정 종목 체결 스트림 구독 (차트 캔들 집계용). 반환값 = 해제 함수 */
+  /** 미국 종목 체결 스트림 구독 (차트 캔들 집계용). 반환값 = 해제 함수 */
   onTrade: (ticker: string, cb: TradeListener) => () => void;
 }
 
 const MarketFeedContext = createContext<MarketFeedValue | null>(null);
 
-const QUOTE_POLL_MS = 60_000;
+const US_QUOTE_POLL_MS = 60_000;
+const KR_QUOTE_POLL_MS = 5_000;
 
 export function MarketFeedProvider({ children }: { children: ReactNode }) {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
@@ -69,13 +71,49 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  /** REST /quote 폴백: 초기값 + 장중 WS 누락 대비 주기 갱신 */
+  /** ── 한국: /api/kr-quotes 폴링 ───────────────────────── */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const res = await fetch("/api/kr-quotes");
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as { quotes?: QuoteSnapshot[] };
+        if (!json.quotes) return;
+        setQuotes((prev) => {
+          const next = { ...prev };
+          for (const q of json.quotes!) {
+            next[q.ticker] = {
+              price: q.price,
+              prevClose: q.prevClose,
+              changePct: q.changePct,
+              source: q.provider,
+              updatedAt: Date.now(),
+            };
+          }
+          return next;
+        });
+      } catch {
+        // 일시 오류는 다음 폴링에서 회복
+      }
+    }
+
+    poll();
+    const id = setInterval(poll, KR_QUOTE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  /** ── 미국: REST /quote 폴백 (초기값 + 장외 시간) ───────── */
   useEffect(() => {
     if (!apiKey) return;
     let cancelled = false;
 
     async function fetchQuotes() {
-      for (const s of SYMBOLS) {
+      for (const s of US_SYMBOLS) {
         try {
           const res = await fetch(
             `https://finnhub.io/api/v1/quote?symbol=${s.ticker}&token=${apiKey}`,
@@ -85,7 +123,6 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
           if (cancelled || !q.c) continue;
           setQuotes((prev) => {
             const cur = prev[s.ticker];
-            // 최근 5초 내 WS 체결이 있으면 REST 값으로 덮지 않음
             if (cur?.source === "ws" && Date.now() - cur.updatedAt < 5_000) {
               return { ...prev, [s.ticker]: { ...cur, prevClose: q.pc } };
             }
@@ -101,20 +138,20 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
             };
           });
         } catch {
-          // 개별 종목 실패는 무시하고 다음 종목 진행
+          // 개별 종목 실패는 무시
         }
       }
     }
 
     fetchQuotes();
-    const id = setInterval(fetchQuotes, QUOTE_POLL_MS);
+    const id = setInterval(fetchQuotes, US_QUOTE_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [apiKey]);
 
-  /** WebSocket 연결 + 자동 재연결(지수 백오프) */
+  /** ── 미국: WebSocket 체결 스트림 ────────────────────── */
   useEffect(() => {
     if (!apiKey) return;
     let disposed = false;
@@ -128,7 +165,7 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
       ws.onopen = () => {
         retryRef.current = 0;
         setConnected(true);
-        for (const s of SYMBOLS) {
+        for (const s of US_SYMBOLS) {
           ws.send(JSON.stringify({ type: "subscribe", symbol: s.ticker }));
         }
       };
@@ -145,7 +182,6 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
         }
         if (msg.type !== "trade" || !msg.data) return;
 
-        // 동일 메시지 내 종목별 마지막 체결만 시세에 반영
         const latest = new Map<string, { p: number; t: number }>();
         for (const d of msg.data) {
           const trade: Trade = {
