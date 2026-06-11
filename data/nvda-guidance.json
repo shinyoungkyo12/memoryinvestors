@@ -1,0 +1,10 @@
+{
+  "_설명": "엔비디아 분기 매출 가이던스 (실적발표 보도자료의 다음 분기 outlook 중간값). 분기마다 1줄 추가 → git push.",
+  "_형식": "fiscalEnd: 해당 가이던스가 가리키는 분기의 종료월(YYYY-MM), guidanceUsdB: 가이던스 중간값($B), announced: 발표일",
+  "guidance": [
+    { "fiscalEnd": "2025-04", "guidanceUsdB": 43.0, "announced": "2025-02-26" },
+    { "fiscalEnd": "2025-07", "guidanceUsdB": 45.0, "announced": "2025-05-28" },
+    { "fiscalEnd": "2025-10", "guidanceUsdB": 54.0, "announced": "2025-08-27" },
+    { "fiscalEnd": "2026-01", "guidanceUsdB": 65.0, "announced": "2025-11-19" }
+  ]
+}

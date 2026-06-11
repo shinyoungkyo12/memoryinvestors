@@ -1,0 +1,55 @@
+{
+  "_설명": "HBM 수주/공급 이벤트 타임라인. 뉴스 확인 후 항목 추가 → git push 하면 사이트에 반영됩니다.",
+  "_형식": "date(YYYY-MM-DD), companies(배열: 삼성전자|SK하이닉스|마이크론|엔비디아), title, source(언론사), url",
+  "events": [
+    {
+      "date": "2026-06-07",
+      "companies": ["삼성전자", "SK하이닉스"],
+      "title": "메모리 공급 격차 2028년까지 전망 — SK하이닉스 M15X 2026년 초 양산, 용인 1기 2027년 완공, 구글·MS와 장기계약 협의",
+      "source": "테크월드",
+      "url": "https://www.epnc.co.kr/news/articleView.html?idxno=401451"
+    },
+    {
+      "date": "2026-05-01",
+      "companies": ["삼성전자"],
+      "title": "삼성전자 HBM4 생산물량 조기 완판 — 1분기 영업이익 57조원, HBM4E·장기계약(LTA) 중심 수익성 전략",
+      "source": "알파경제",
+      "url": "https://alphabiz.co.kr/news/view/1065571517499984"
+    },
+    {
+      "date": "2026-04-23",
+      "companies": ["SK하이닉스"],
+      "title": "SK하이닉스 1분기 컨콜: \"HBM 향후 3년치 고객 수요가 생산능력 초과\" — HBM4E 하반기 샘플 공급, 2027년 양산 목표",
+      "source": "딜사이트",
+      "url": "https://dealsite.co.kr/articles/160727"
+    },
+    {
+      "date": "2026-02-28",
+      "companies": ["마이크론"],
+      "title": "마이크론 아이다호 HBM4 전용 팹 착공 — CEO \"2026년 HBM4 공급량 전량 완판 수준 계약 완료\", 엔비디아 베라루빈 공급망 겨냥",
+      "source": "디지털데일리",
+      "url": "https://v.daum.net/v/20260228141819472"
+    },
+    {
+      "date": "2026-02-12",
+      "companies": ["마이크론", "삼성전자"],
+      "title": "마이크론 HBM4 고객 출하 시작·올해 HBM 물량 완판 발표 — 같은 날 삼성전자 HBM4 세계 최초 양산 출하 공식화",
+      "source": "연합뉴스",
+      "url": "https://v.daum.net/v/20260212172102151"
+    },
+    {
+      "date": "2026-01-29",
+      "companies": ["SK하이닉스", "엔비디아"],
+      "title": "엔비디아, 2026년 HBM4 수요의 약 70%를 SK하이닉스에 배정 — Counterpoint, SK하이닉스 2026년 HBM4 점유율 54% 전망",
+      "source": "연합뉴스/TheFly",
+      "url": "https://il.tipranks.com/news/the-fly/2853988"
+    },
+    {
+      "date": "2025-11-04",
+      "companies": ["SK하이닉스", "삼성전자", "엔비디아"],
+      "title": "SK하이닉스, 엔비디아와 HBM4 공급계약 확정(가격·물량·시기) — 삼성전자도 큰 틀 공급 합의, 루빈 탑재 예정",
+      "source": "전자신문",
+      "url": "https://www.etnews.com/20251104000298"
+    }
+  ]
+}
