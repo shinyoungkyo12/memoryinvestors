@@ -13,6 +13,8 @@ import {
 import { MarketFeedProvider, useMarketFeed, type Quote } from "@/lib/market-feed";
 import Watchlist from "@/components/Watchlist";
 import TickerTape from "@/components/TickerTape";
+import SummaryBar from "@/components/SummaryBar";
+import InfoBox from "@/components/InfoBox";
 
 const CandleChart = dynamic(() => import("@/components/CandleChart"), {
   ssr: false,
@@ -142,6 +144,7 @@ function Dashboard() {
       </header>
 
       <TickerTape />
+      <SummaryBar onNavigate={setView} />
 
       {/* 본문 */}
       {view === "spot" ? (
@@ -198,6 +201,34 @@ function Dashboard() {
             이동평균선(5/10/20/60/120)은 확정 봉 기준입니다. 본 화면은 정보 제공
             목적이며 투자 권유가 아닙니다.
           </p>
+          <div className="px-2 pb-2">
+            <InfoBox
+              title="이동평균선(MA) 읽는 법"
+              intro="이동평균선은 일정 기간 종가의 평균을 이은 선으로, 추세의 방향과 지지/저항 수준을 보여줍니다. MA5·10은 단기, MA20은 시장에서 '생명선'으로 불리는 기준선, MA60은 중기(분기), MA120은 장기(반기) 추세를 나타냅니다."
+              signals={[
+                {
+                  icon: "📈",
+                  label: "정배열 (5>10>20>60>120)",
+                  desc: "단기선이 장기선 위에 차례로 정렬 — 상승 추세가 건강하게 진행 중이라는 일반적 신호입니다.",
+                },
+                {
+                  icon: "📉",
+                  label: "역배열 (5<10<20<60<120)",
+                  desc: "하락 추세 진행 중 — 통상 추세 전환 확인 전까지 보수적으로 접근하는 구간으로 해석됩니다.",
+                },
+                {
+                  icon: "🛡️",
+                  label: "MA20 지지 / 이탈",
+                  desc: "주가가 MA20 부근에서 지지되면 추세 유지, 거래량을 동반해 하향 이탈하면 단기 추세 약화 신호로 봅니다.",
+                },
+                {
+                  icon: "✂️",
+                  label: "골든/데드 크로스",
+                  desc: "단기선이 장기선을 상향 돌파(골든)하면 추세 전환 기대, 하향 돌파(데드)하면 하락 전환 경계 신호입니다.",
+                },
+              ]}
+            />
+          </div>
         </main>
       </div>
       )}

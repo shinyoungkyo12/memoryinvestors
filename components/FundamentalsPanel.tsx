@@ -11,6 +11,7 @@ import {
 } from "lightweight-charts";
 import type { FundamentalsResponse } from "@/app/api/fundamentals/route";
 import type { NewsItem } from "@/app/api/hbm-news/route";
+import InfoBox from "@/components/InfoBox";
 
 /**
  * 펀더멘털 패널 — 사진 체크리스트의 ②③④ 항목
@@ -20,12 +21,22 @@ import type { NewsItem } from "@/app/api/hbm-news/route";
  */
 
 const ACCENT = "#d8a24a";
-const INV_TICKERS = ["MU", "SNDK", "STX", "WDC"] as const;
+const INV_TICKERS = ["005930", "000660", "MU", "SNDK", "STX", "WDC"] as const;
 const TICKER_NAMES: Record<string, string> = {
+  "005930": "삼성전자",
+  "000660": "SK하이닉스",
   MU: "마이크론",
   SNDK: "샌디스크",
   STX: "씨게이트",
   WDC: "웨스턴디지털",
+};
+const TICKER_BTN: Record<string, string> = {
+  "005930": "삼성",
+  "000660": "하이닉스",
+  MU: "MU",
+  SNDK: "SNDK",
+  STX: "STX",
+  WDC: "WDC",
 };
 
 const CHART_OPTS = {
@@ -160,7 +171,7 @@ const COMPANY_COLORS: Record<string, string> = {
 export default function FundamentalsPanel() {
   const [data, setData] = useState<FundamentalsResponse | null>(null);
   const [error, setError] = useState("");
-  const [ticker, setTicker] = useState<string>("MU");
+  const [ticker, setTicker] = useState<string>("005930");
   const [news, setNews] = useState<NewsItem[] | null>(null);
   const [newsError, setNewsError] = useState("");
 
@@ -230,6 +241,11 @@ export default function FundamentalsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
             반도체 재고 수준
+            {data?.inventory?.[ticker]?.length ? (
+              <span className="ml-2 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-normal text-[var(--muted)]">
+                기준 {data.inventory[ticker].at(-1)?.fiscalEnd} 분기
+              </span>
+            ) : null}
           </h2>
           <div className="flex overflow-hidden rounded-md border border-[var(--border)]">
             {INV_TICKERS.map((t) => (
@@ -243,7 +259,7 @@ export default function FundamentalsPanel() {
                     : "text-[var(--muted)] hover:text-[var(--text)]"
                 }`}
               >
-                {t}
+                {TICKER_BTN[t]}
               </button>
             ))}
           </div>
@@ -252,7 +268,9 @@ export default function FundamentalsPanel() {
           <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 px-2 font-mono text-[11px]">
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#3b4a63]" />
-              <span className="text-[var(--text)]">막대 = 재고자산 ($B, 우축)</span>
+              <span className="text-[var(--text)]">
+                막대 = 재고자산 ({data.inventoryUnits?.[ticker] ?? "$B"}, 우축)
+              </span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-4 bg-[#d8a24a]" />
@@ -261,8 +279,16 @@ export default function FundamentalsPanel() {
               </span>
             </span>
           </div>
-          {hasInventory ? (
+          {hasInventory && data.inventory[ticker] ? (
             <InventoryChart data={data.inventory} ticker={ticker} />
+          ) : hasInventory ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-2 text-center text-sm text-[var(--muted)]">
+              <span>{TICKER_NAMES[ticker]} 재고 데이터가 아직 없습니다.</span>
+              <span className="text-xs">
+                한국 종목은 DART_API_KEY 등록 후 &ldquo;펀더멘털 수집&rdquo;
+                워크플로 실행 시 채워집니다.
+              </span>
+            </div>
           ) : (
             <div className="flex h-64 flex-col items-center justify-center gap-2 text-center text-sm text-[var(--muted)]">
               <span>아직 수집된 재고 데이터가 없습니다.</span>
@@ -273,11 +299,38 @@ export default function FundamentalsPanel() {
           )}
         </div>
         <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
-          {TICKER_NAMES[ticker]} ({ticker}) · 자료: SEC EDGAR 분기 공시.
-          재고일수(DIO) = 지금 쌓인 재고가 며칠치 판매분인지 — 선이 내려가면
-          재고가 빠르게 소진되는 것(수요 강세·업황 개선 신호), 올라가면 재고
-          부담 증가입니다.
+          {TICKER_NAMES[ticker]} ({ticker}) · 자료: SEC EDGAR / DART 분기
+          공시.
+          재고일수(DIO) = 지금 쌓인 재고가 며칠치 판매분인지.
         </p>
+        <div className="px-2 pb-2">
+          <InfoBox
+            title="재고와 DIO, 어떻게 읽나요?"
+            intro="메모리는 대표적인 사이클 산업입니다. 재고가 줄고 DIO가 하락하면 '만드는 족족 팔린다'는 뜻이고, 재고가 쌓이고 DIO가 급등하면 공급과잉 국면입니다. 역사적으로 DIO 정점 부근이 주가 바닥, DIO 저점 부근이 업황 정점과 겹치는 경향이 있습니다."
+            signals={[
+              {
+                icon: "✅",
+                label: "DIO 하락 추세",
+                desc: "수요 > 공급. 가격 협상력이 메모리 제조사로 넘어오는 구간 — 업황 개선 신호입니다.",
+              },
+              {
+                icon: "🚨",
+                label: "DIO 급등",
+                desc: "재고가 쌓이는 중 — 가격 인하·감산 압력이 커지는 공급과잉 경고입니다.",
+              },
+              {
+                icon: "🔄",
+                label: "재고 증가 + DIO 유지",
+                desc: "판매가 같이 늘며 재고를 쌓는 것 — 수요 대비 정상적 증가로 해석할 수 있습니다.",
+              },
+              {
+                icon: "🏭",
+                label: "기업 간 비교",
+                desc: "같은 시점에 특정 기업만 DIO가 높다면 제품 믹스·수율 문제일 수 있어 상대 비교가 중요합니다.",
+              },
+            ]}
+          />
+        </div>
       </section>
 
       {/* ④ 엔비디아 가이던스 */}
@@ -288,6 +341,11 @@ export default function FundamentalsPanel() {
             <span className="ml-2 font-normal text-[var(--muted)]">
               막대: 실적($B) · 점선: 가이던스
             </span>
+            {data?.nvidia?.length ? (
+              <span className="ml-2 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-normal text-[var(--muted)]">
+                기준 {data.nvidia.at(-1)?.fiscalEnd.slice(0, 7)}
+              </span>
+            ) : null}
           </h2>
         </div>
         <div className="p-2">
@@ -304,9 +362,36 @@ export default function FundamentalsPanel() {
         </div>
         <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
           실적: SEC EDGAR · 가이던스: 실적발표 outlook 중간값
-          (data/nvda-guidance.json 수동 관리). 실적이 가이던스를 상회하는 폭이
-          좁아지면 모멘텀 둔화 신호.
+          (data/nvda-guidance.json 수동 관리).
         </p>
+        <div className="px-2 pb-2">
+          <InfoBox
+            title="엔비디아 실적이 왜 메모리 지표인가요?"
+            intro="HBM 수요의 최대 원천이 엔비디아 AI 가속기입니다. 엔비디아의 매출 가이던스는 곧 '다음 분기에 GPU를 얼마나 출하할 계획인가'를 의미하고, GPU 한 장마다 HBM이 대량 탑재되므로 삼성·하이닉스·마이크론의 HBM 매출을 한 분기 먼저 보여주는 선행지표가 됩니다."
+            signals={[
+              {
+                icon: "🚀",
+                label: "실적이 가이던스 대폭 상회",
+                desc: "AI 수요가 회사 예상보다 빠르게 성장 중 — HBM 공급사 실적 상향 기대가 같이 커집니다.",
+              },
+              {
+                icon: "⚠️",
+                label: "상회 폭 축소",
+                desc: "여전히 성장하지만 서프라이즈가 줄어드는 것 — 모멘텀 둔화의 초기 신호로 해석되곤 합니다.",
+              },
+              {
+                icon: "📉",
+                label: "가이던스 하회",
+                desc: "AI 수요 둔화 — 메모리 주식 전반의 동반 조정 위험이 커지는 경고입니다.",
+              },
+              {
+                icon: "🗓️",
+                label: "발표 일정",
+                desc: "엔비디아 실적은 2·5·8·11월 말 발표 — 발표일 전후 메모리 주식 변동성이 커집니다.",
+              },
+            ]}
+          />
+        </div>
       </section>
 
       {/* ③ HBM 수주 현황 타임라인 (수동 큐레이션) */}

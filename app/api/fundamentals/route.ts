@@ -16,6 +16,7 @@ interface InventoryRow {
   inventory_usd: number;
   cogs_usd: number | null;
   dio: number | null;
+  currency: string | null;
 }
 
 interface RevenueRow {
@@ -28,6 +29,8 @@ export interface FundamentalsResponse {
     string,
     { fiscalEnd: string; inventoryB: number; dio: number | null }[]
   >;
+  /** 종목별 재고 표시 단위 ($B 또는 조원) */
+  inventoryUnits: Record<string, string>;
   nvidia: {
     fiscalEnd: string;
     actualB: number | null;
@@ -73,7 +76,7 @@ export async function GET() {
 
   const [invRows, revRows, autoEvents] = await Promise.all([
     supabaseSelect<InventoryRow>(
-      "inventory?select=ticker,fiscal_end,inventory_usd,cogs_usd,dio&order=fiscal_end.asc&limit=2000",
+      "inventory?select=ticker,fiscal_end,inventory_usd,cogs_usd,dio,currency&order=fiscal_end.asc&limit=2000",
     ),
     supabaseSelect<RevenueRow>(
       "nvda_revenue?select=fiscal_end,revenue_usd&order=fiscal_end.asc&limit=200",
@@ -91,14 +94,19 @@ export async function GET() {
 
   // 재고: 종목별 그룹화 (최근 8년만)
   const inventory: FundamentalsResponse["inventory"] = {};
+  const inventoryUnits: FundamentalsResponse["inventoryUnits"] = {};
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 8);
   for (const r of invRows ?? []) {
     if (Date.parse(r.fiscal_end) < cutoff.getTime()) continue;
     if (!inventory[r.ticker]) inventory[r.ticker] = [];
+    const isKrw = r.currency === "KRW";
+    inventoryUnits[r.ticker] = isKrw ? "조원" : "$B";
     inventory[r.ticker].push({
       fiscalEnd: r.fiscal_end,
-      inventoryB: Math.round((Number(r.inventory_usd) / 1e9) * 100) / 100,
+      inventoryB: isKrw
+        ? Math.round((Number(r.inventory_usd) / 1e12) * 100) / 100
+        : Math.round((Number(r.inventory_usd) / 1e9) * 100) / 100,
       dio: r.dio === null ? null : Number(r.dio),
     });
   }
@@ -167,7 +175,12 @@ export async function GET() {
     })
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const data: FundamentalsResponse = { inventory, nvidia, hbmEvents };
+  const data: FundamentalsResponse = {
+    inventory,
+    inventoryUnits,
+    nvidia,
+    hbmEvents,
+  };
   cache = { at: Date.now(), data };
 
   return NextResponse.json(

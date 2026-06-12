@@ -1,8 +1,9 @@
 /**
- * 펀더멘털 수집기 — SEC EDGAR (무료, 키 불필요)
+ * 펀더멘털 수집기 — SEC EDGAR (키 불필요) + DART (선택, DART_API_KEY)
  *
  * 수집 내용:
- *  - MU/SNDK/STX/WDC: 재고자산(InventoryNet) + 분기 매출원가(COGS) → DIO(재고일수) 계산
+ *  - MU/SNDK/STX/WDC: 재고자산(InventoryNet) + 분기 매출원가(COGS) → DIO(재고일수)
+ *  - 삼성전자/SK하이닉스: DART 전체 재무제표에서 재고자산·매출원가 → DIO (KRW)
  *  - NVDA: 분기 매출 (가이던스 비교용 실적)
  *
  * 실행:
@@ -179,6 +180,110 @@ async function collectRevenue(ticker, cik) {
   }));
 }
 
+/* ─────────────── DART (삼성전자·SK하이닉스) ───────────────
+ * corp_code는 금감원이 부여하는 고정 식별자 (티커처럼 불변의 공개 상수)
+ * 검증: opendart.fss.or.kr 공시정보 → 고유번호 조회                    */
+const DART_COMPANIES = [
+  { ticker: "005930", corpCode: "00126380", nameKo: "삼성전자" },
+  { ticker: "000660", corpCode: "00164779", nameKo: "SK하이닉스" },
+];
+
+/** 보고서 코드 → 분기말 일자 */
+const DART_REPORTS = [
+  { code: "11013", end: "-03-31", q: 1 },
+  { code: "11012", end: "-06-30", q: 2 },
+  { code: "11014", end: "-09-30", q: 3 },
+  { code: "11011", end: "-12-31", q: 4 }, // 사업보고서(연간)
+];
+
+const dartNum = (v) => {
+  const n = Number(String(v ?? "").replace(/,/g, ""));
+  return Number.isFinite(n) && n !== 0 ? n : null;
+};
+
+/** DART 전체 재무제표 list → {inventory, cogs} (export: 픽스처 테스트용) */
+export function parseDartReport(list) {
+  const norm = (t) => String(t ?? "").replace(/\s/g, "");
+  const inv = list.find(
+    (a) =>
+      a.sj_div === "BS" &&
+      (a.account_id === "ifrs-full_Inventories" ||
+        norm(a.account_nm) === "재고자산"),
+  );
+  const cogs = list.find(
+    (a) =>
+      a.sj_div === "IS" &&
+      (a.account_id === "ifrs-full_CostOfSales" ||
+        norm(a.account_nm) === "매출원가"),
+  );
+  return {
+    inventory: dartNum(inv?.thstrm_amount),
+    cogs: dartNum(cogs?.thstrm_amount), // 분기보고서=3개월, 사업보고서=연간
+  };
+}
+
+async function fetchDartReport(corpCode, year, reprtCode) {
+  const key = process.env.DART_API_KEY;
+  const url =
+    `https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json` +
+    `?crtfc_key=${key}&corp_code=${corpCode}&bsns_year=${year}` +
+    `&reprt_code=${reprtCode}&fs_div=CFS`;
+  try {
+    const res = await fetch(url);
+    await sleep(120);
+    const json = await res.json();
+    if (json.status !== "000" || !Array.isArray(json.list)) return null;
+    return json.list;
+  } catch {
+    return null;
+  }
+}
+
+async function collectDartCompany(company) {
+  const thisYear = new Date().getFullYear();
+  const rows = []; // {fiscal_end, inventory, cogs3m}
+  const annualCogs = new Map(); // year → 연간 매출원가
+
+  for (let year = thisYear - 3; year <= thisYear; year++) {
+    for (const rep of DART_REPORTS) {
+      const list = await fetchDartReport(company.corpCode, year, rep.code);
+      if (!list) continue;
+      const { inventory, cogs } = parseDartReport(list);
+      const fiscal_end = `${year}${rep.end}`;
+      if (rep.code === "11011") {
+        if (cogs) annualCogs.set(year, cogs);
+        if (inventory) rows.push({ fiscal_end, inventory, cogs3m: null, year, q: 4 });
+      } else if (inventory) {
+        rows.push({ fiscal_end, inventory, cogs3m: cogs, year, q: rep.q });
+      }
+    }
+  }
+
+  // Q4 매출원가 도출: 연간 − (Q1+Q2+Q3)
+  for (const r of rows) {
+    if (r.q === 4 && r.cogs3m === null && annualCogs.has(r.year)) {
+      const qs = rows.filter(
+        (x) => x.year === r.year && x.q < 4 && x.cogs3m !== null,
+      );
+      if (qs.length === 3) {
+        r.cogs3m = annualCogs.get(r.year) - qs.reduce((s, x) => s + x.cogs3m, 0);
+      }
+    }
+  }
+
+  return rows.map((r) => ({
+    ticker: company.ticker,
+    fiscal_end: r.fiscal_end,
+    inventory_usd: r.inventory, // KRW 원 단위 그대로 저장 (currency로 구분)
+    cogs_usd: r.cogs3m,
+    dio:
+      r.cogs3m && r.cogs3m > 0
+        ? Math.round((r.inventory / r.cogs3m) * 91.25 * 10) / 10
+        : null,
+    currency: "KRW",
+  }));
+}
+
 async function upsert(table, rows, conflictCols) {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -218,7 +323,21 @@ async function main() {
   for (const t of INVENTORY_TICKERS) {
     const rows = await collectInventory(t, ciks[t]);
     console.log(`[fundamentals] ${t}: 재고 ${rows.length}개 분기`);
-    allInventory.push(...rows);
+    allInventory.push(...rows.map((r) => ({ ...r, currency: "USD" })));
+  }
+
+  if (process.env.DART_API_KEY) {
+    for (const company of DART_COMPANIES) {
+      const rows = await collectDartCompany(company);
+      console.log(
+        `[fundamentals] ${company.nameKo}(${company.ticker}): 재고 ${rows.length}개 분기 (DART)`,
+      );
+      allInventory.push(...rows);
+    }
+  } else {
+    console.log(
+      "[fundamentals] DART_API_KEY 미설정 — 삼성전자/SK하이닉스 재고 수집 건너뜀",
+    );
   }
 
   const nvdaRevenue = await collectRevenue(REVENUE_TICKER, ciks[REVENUE_TICKER]);
@@ -226,8 +345,12 @@ async function main() {
 
   // 최근 5개 분기 미리보기
   console.log("─── 재고/DIO 최근 데이터 (종목별 마지막 분기) ───");
+  const allTickers = [
+    ...INVENTORY_TICKERS,
+    ...DART_COMPANIES.map((c) => c.ticker),
+  ];
   console.table(
-    INVENTORY_TICKERS.map(
+    allTickers.map(
       (t) => allInventory.filter((r) => r.ticker === t).at(-1) ?? { ticker: t },
     ),
   );
@@ -266,3 +389,4 @@ if (
 }
 
 export { quarterlyDurations, latestInstants, matchCogs };
+// parseDartReport는 위에서 export

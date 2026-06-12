@@ -9,6 +9,26 @@ import { useMarketFeed } from "@/lib/market-feed";
  */
 export default function TickerTape() {
   const { quotes } = useMarketFeed();
+  const fx = quotes["USDKRW"];
+
+  const renderFx = (suffix: string) =>
+    fx ? (
+      <span key={`fx${suffix}`} className="tape-item">
+        <span className="text-[var(--accent)]">USD/KRW</span>
+        <span className="font-semibold text-[var(--text)]">
+          ₩
+          {fx.price.toLocaleString("ko-KR", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })}
+        </span>
+        <span
+          className={fx.changePct >= 0 ? "text-[var(--up)]" : "text-[var(--down)]"}
+        >
+          {fx.changePct >= 0 ? "▲" : "▼"} {Math.abs(fx.changePct).toFixed(2)}%
+        </span>
+      </span>
+    ) : null;
 
   const renderItems = (suffix: string) =>
     SYMBOLS.map((s) => {
@@ -34,8 +54,10 @@ export default function TickerTape() {
   return (
     <div className="tape" aria-hidden="true">
       <div className="tape-track">
+        {renderFx("")}
         {renderItems("")}
         {/* 무한 스크롤을 위한 복제 */}
+        {renderFx("-dup")}
         {renderItems("-dup")}
       </div>
     </div>

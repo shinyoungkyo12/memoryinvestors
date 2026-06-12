@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import shareJson from "@/data/market-share.json";
+import InfoBox from "@/components/InfoBox";
 
 /**
  * 메모리 시장 점유율 패널
@@ -190,6 +191,32 @@ export default function MarketSharePanel() {
 
   return (
     <div className="flex flex-col gap-3">
+      <InfoBox
+        title="점유율, 어떻게 읽나요?"
+        intro="매출액 기준 글로벌 점유율입니다. 메모리는 소수 기업이 과점한 시장이라 점유율 변화 자체가 수주 경쟁·수율·기술력의 성적표입니다. 특히 HBM 점유율은 AI 메모리 주도권을 가장 직접적으로 보여주는 숫자입니다."
+        signals={[
+          {
+            icon: "🏆",
+            label: "HBM 점유율 변동",
+            desc: "분기에 3%p 이상 움직이면 대형 수주의 이동을 의미 — 해당 기업 주가 리레이팅의 트리거가 되곤 합니다.",
+          },
+          {
+            icon: "💰",
+            label: "D램: 점유율 vs 수익성",
+            desc: "점유율 1위가 곧 이익 1위는 아닙니다. HBM 비중이 높은 기업이 같은 점유율에서도 마진이 큽니다.",
+          },
+          {
+            icon: "🇨🇳",
+            label: "CXMT(중국) 추격",
+            desc: "범용 D램에서 중국 점유율 상승은 장기 공급과잉 리스크 — 추이를 계속 지켜봐야 하는 변수입니다.",
+          },
+          {
+            icon: "📊",
+            label: "분기 추이 버튼",
+            desc: "각 카드의 '분기 추이'를 누르면 5개 분기 흐름이 보입니다. 한 분기 수치보다 방향이 중요합니다.",
+          },
+        ]}
+      />
       <div className="grid gap-3 xl:grid-cols-3">
         {segments.map((seg) => (
           <SegmentCard key={seg.id} seg={seg} />

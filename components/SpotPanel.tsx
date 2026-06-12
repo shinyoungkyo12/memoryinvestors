@@ -10,6 +10,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { SpotSeries } from "@/app/api/spot/route";
+import InfoBox from "@/components/InfoBox";
 
 /**
  * DRAM 현물가격 패널
@@ -108,6 +109,12 @@ export default function SpotPanel() {
   const [selected, setSelected] = useState<string>("");
   const [defaultItem, setDefaultItem] = useState<string>("");
   const [indexed, setIndexed] = useState(false);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setNow(Date.now()));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   /** 데이터 로드 */
   useEffect(() => {
@@ -207,6 +214,33 @@ export default function SpotPanel() {
       {/* 변화율 카드 */}
       {selectedSeries && <ChangeCards series={selectedSeries} />}
 
+      <InfoBox
+        title="현물가가 왜 중요한가요?"
+        intro="현물가(spot)는 대리점·중개시장에서 즉시 거래되는 가격입니다. 삼성전자·SK하이닉스 매출의 대부분은 분기 단위 '고정거래가(계약가)'로 결정되지만, 현물가는 수급 변화를 가장 먼저 반영해 통상 고정가를 1~2개월 선행합니다. 그래서 현물가의 추세 전환은 메모리 주가의 조기 신호로 활용됩니다."
+        signals={[
+          {
+            icon: "🔥",
+            label: "현물가 연속 상승",
+            desc: "공급 부족·수요 강세 — 다음 분기 고정가 인상 → 메모리 기업 실적 개선 기대로 이어지는 패턴입니다.",
+          },
+          {
+            icon: "🧊",
+            label: "현물가 하락 전환",
+            desc: "재고 증가·수요 둔화의 조기 경보 — 상승 사이클 후반에 현물가가 먼저 꺾이는 경향이 있습니다.",
+          },
+          {
+            icon: "⚖️",
+            label: "현물가 > 고정가 역전",
+            desc: "당장 물량 확보 경쟁이 붙었다는 뜻 — 강한 상승 사이클에서 나타나는 대표적 신호입니다.",
+          },
+          {
+            icon: "📅",
+            label: "고정거래가(월별·보도치)",
+            desc: "실제 대량 계약 가격. 월말 발표되며, 현물가 추세를 약 1~2개월 후 따라가는 경향이 있습니다.",
+          },
+        ]}
+      />
+
       <div className="flex flex-col gap-3 xl:flex-row">
         {/* 차트 */}
         <div className="flex flex-1 flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)]">
@@ -218,6 +252,24 @@ export default function SpotPanel() {
                   {selected}
                 </span>
               )}
+              {selectedSeries && (() => {
+                const stale =
+                  now > 0 &&
+                  (now - Date.parse(selectedSeries.latest.date)) / 86_400_000 >
+                    5;
+                return (
+                  <span
+                    className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-normal ${
+                      stale
+                        ? "border border-[var(--up)]/50 text-[var(--up)]"
+                        : "border border-[var(--border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    기준 {selectedSeries.latest.date}
+                    {stale && " · 지연"}
+                  </span>
+                );
+              })()}
             </h2>
             <div className="flex items-center gap-3">
               <label className="flex cursor-pointer items-center gap-1.5 font-mono text-xs text-[var(--muted)]">

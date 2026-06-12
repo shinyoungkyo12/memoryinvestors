@@ -166,6 +166,32 @@ async function main() {
 
   await upsertEvents(events);
   console.log(`[news-events] Supabase 저장 완료 (신규분만 삽입)`);
+
+  await cleanupOldEvents();
+}
+
+/** 30일 경과한 자동 수집 이벤트 삭제 (검증 항목은 JSON에 있어 영향 없음) */
+async function cleanupOldEvents() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  const cutoff = new Date(Date.now() - 30 * 86_400_000 + 9 * 3_600_000)
+    .toISOString()
+    .slice(0, 10);
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/news_events?event_date=lt.${cutoff}`,
+      {
+        method: "DELETE",
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      },
+    );
+    console.log(
+      `[news-events] ${cutoff} 이전 자동 이벤트 정리: HTTP ${res.status}`,
+    );
+  } catch (e) {
+    console.warn("[news-events] 정리 실패(다음 실행에서 재시도):", e.message);
+  }
 }
 
 if (

@@ -26,7 +26,8 @@ npm run dev                   # http://localhost:3000
 | `NEXT_PUBLIC_FINNHUB_API_KEY` | finnhub.io (무료) | 미국 실시간 체결 |
 | `TWELVE_DATA_API_KEY` | twelvedata.com (무료) | 미국 과거 봉 |
 | `KIS_APP_KEY` / `KIS_APP_SECRET` | apiportal.koreainvestment.com (선택) | 한국 실시간 현재가. 미설정 시 Yahoo 지연시세 |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | supabase.com (무료) | DRAM 현물가 저장소 |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | supabase.com (무료) | 현물가/재고/이벤트 저장소 |
+| `DART_API_KEY` | opendart.fss.or.kr (무료, 선택) | 삼성전자·SK하이닉스 재고 수집 |
 
 ## 2. DRAM 현물가 수집 설정 (Phase 3)
 
@@ -72,6 +73,13 @@ npm run scrape:dry   # DB 저장 없이 파싱 결과만 출력
 - `data/nvda-guidance.json` — 엔비디아 실적발표 때 다음 분기 가이던스 1줄 추가
 - `data/hbm-events.json` — HBM 수주 뉴스 나올 때 항목 추가
 - 수정 후 `git push` 하면 사이트 자동 반영
+
+### 삼성전자·SK하이닉스 재고 (DART)
+1. https://opendart.fss.or.kr → 회원가입 → 인증키 신청 (즉시 발급)
+2. Supabase SQL Editor에서 `supabase/schema-update-1.sql` 실행 (currency 컬럼)
+3. `.env.local`과 GitHub Secrets에 `DART_API_KEY` 추가
+4. "펀더멘털 수집" 워크플로 실행 → 재고 차트에 삼성/하이닉스 버튼 활성화 (단위: 조원)
+* 자동 수집된 수주이슈는 30일 경과 시 자동 삭제됩니다 (검증 항목은 유지)
 
 ## 4. 배포
 

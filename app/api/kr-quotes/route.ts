@@ -17,6 +17,25 @@ import type { QuoteSnapshot } from "@/lib/types";
 const CACHE_TTL = 3_000;
 let cache: { at: number; data: QuoteSnapshot[] } | null = null;
 
+/** 환율(USD/KRW)은 60초 캐시 — Yahoo KRW=X */
+const FX_TTL = 60_000;
+let fxCache: { at: number; data: QuoteSnapshot } | null = null;
+
+async function getFxQuote(): Promise<QuoteSnapshot | null> {
+  if (fxCache && Date.now() - fxCache.at < FX_TTL) return fxCache.data;
+  const y = await fetchYahooQuote("KRW=X");
+  if (!y) return fxCache?.data ?? null;
+  const snap: QuoteSnapshot = {
+    ticker: "USDKRW",
+    price: y.price,
+    prevClose: y.prevClose,
+    changePct: y.changePct,
+    provider: "yahoo",
+  };
+  fxCache = { at: Date.now(), data: snap };
+  return snap;
+}
+
 export async function GET() {
   if (cache && Date.now() - cache.at < CACHE_TTL) {
     return NextResponse.json(
@@ -54,7 +73,9 @@ export async function GET() {
     }),
   );
 
+  const fx = await getFxQuote();
   const data = quotes.filter((q): q is QuoteSnapshot => q !== null);
+  if (fx) data.push(fx);
   if (data.length > 0) {
     cache = { at: Date.now(), data };
   }
