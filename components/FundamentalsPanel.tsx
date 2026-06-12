@@ -230,9 +230,6 @@ export default function FundamentalsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
             반도체 재고 수준
-            <span className="ml-2 font-normal text-[var(--muted)]">
-              막대: 재고($B, 우축) · 선: DIO 재고일수(좌축)
-            </span>
           </h2>
           <div className="flex overflow-hidden rounded-md border border-[var(--border)]">
             {INV_TICKERS.map((t) => (
@@ -252,6 +249,18 @@ export default function FundamentalsPanel() {
           </div>
         </div>
         <div className="p-2">
+          <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 px-2 font-mono text-[11px]">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#3b4a63]" />
+              <span className="text-[var(--text)]">막대 = 재고자산 ($B, 우축)</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-4 bg-[#d8a24a]" />
+              <span className="text-[var(--text)]">
+                선 = 재고일수 DIO (일, 좌축)
+              </span>
+            </span>
+          </div>
           {hasInventory ? (
             <InventoryChart data={data.inventory} ticker={ticker} />
           ) : (
@@ -264,8 +273,10 @@ export default function FundamentalsPanel() {
           )}
         </div>
         <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
-          {TICKER_NAMES[ticker]} ({ticker}) · 자료: SEC EDGAR 분기 공시. DIO↑ =
-          재고 부담 증가, DIO↓ = 재고 소진(업황 개선 신호).
+          {TICKER_NAMES[ticker]} ({ticker}) · 자료: SEC EDGAR 분기 공시.
+          재고일수(DIO) = 지금 쌓인 재고가 며칠치 판매분인지 — 선이 내려가면
+          재고가 빠르게 소진되는 것(수요 강세·업황 개선 신호), 올라가면 재고
+          부담 증가입니다.
         </p>
       </section>
 
@@ -302,7 +313,7 @@ export default function FundamentalsPanel() {
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
-            HBM 수주 타임라인
+            메모리반도체주식 수주이슈
             <span className="ml-2 font-normal text-[var(--muted)]">
               검증(큐레이션) + 자동(뉴스 분류, 하루 3회)
             </span>
@@ -361,7 +372,7 @@ export default function FundamentalsPanel() {
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
-            HBM 관련 최신기사
+            메모리반도체주식 관련 기사
             <span className="ml-2 font-normal text-[var(--muted)]">
               자동 수집 · Google News · 30분 갱신
             </span>

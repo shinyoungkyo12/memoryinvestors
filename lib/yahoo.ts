@@ -23,7 +23,12 @@ const YAHOO_PARAMS: Record<Interval, { interval: string; range: string }> = {
 interface YahooChartResponse {
   chart?: {
     result?: {
-      meta?: { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number };
+      meta?: {
+        regularMarketPrice?: number;
+        regularMarketPreviousClose?: number;
+        chartPreviousClose?: number;
+        previousClose?: number;
+      };
       timestamp?: number[];
       indicators?: {
         quote?: {
@@ -99,14 +104,17 @@ export interface YahooQuote {
   changePct: number;
 }
 
-/** 폴백 시세 (1d 차트의 meta에서 추출 — 별도 quote API 불필요) */
+/** 폴백 시세 — 반드시 "전일 종가" 대비로 계산 (range=1d → chartPreviousClose=전일 종가) */
 export async function fetchYahooQuote(
   yahooTicker: string,
 ): Promise<YahooQuote | null> {
-  const json = await fetchChart(yahooTicker, "1d", "5d");
+  const json = await fetchChart(yahooTicker, "1d", "1d");
   const meta = json?.chart?.result?.[0]?.meta;
   const price = meta?.regularMarketPrice;
-  const prevClose = meta?.chartPreviousClose ?? meta?.previousClose;
+  const prevClose =
+    meta?.regularMarketPreviousClose ??
+    meta?.previousClose ??
+    meta?.chartPreviousClose;
   if (!price || !prevClose) return null;
   return {
     price,

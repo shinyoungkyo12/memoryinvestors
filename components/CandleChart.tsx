@@ -285,9 +285,22 @@ export default function CandleChart({ ticker, interval }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [krQuote?.price, krQuote?.updatedAt, symbol?.market, status]);
 
+  function resetView() {
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.priceScale("right").applyOptions({ autoScale: true });
+    chart.timeScale().fitContent();
+  }
+
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
+      <button
+        onClick={resetView}
+        className="absolute right-2 top-1 z-10 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-0.5 font-mono text-[10px] text-[var(--muted)] transition-colors hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+      >
+        ⟲ 리셋
+      </button>
       <div className="pointer-events-none absolute left-2 top-1 z-10 flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10px]">
         {MA_PERIODS.map((p) => (
           <span key={p} style={{ color: MA_COLORS[p] }}>

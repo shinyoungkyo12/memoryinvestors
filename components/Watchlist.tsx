@@ -72,9 +72,15 @@ export default function Watchlist({ selected, onSelect }: Props) {
 
   return (
     <nav
-      aria-label="관심종목"
+      aria-label="관련주식"
       className="flex flex-row gap-3 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0"
     >
+      <div className="hidden border-b border-[var(--border)] px-2 pb-2 font-mono text-xs font-bold tracking-wide text-[var(--text)] lg:block">
+        관련주식
+        <span className="ml-1.5 font-normal text-[var(--muted)]">
+          전일종가 대비 %
+        </span>
+      </div>
       {groups.map((g) => (
         <div key={g.label} className="shrink-0 lg:shrink">
           <div className="mb-1 px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">

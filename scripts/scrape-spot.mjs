@@ -23,8 +23,9 @@ const TIMEOUT_MS = 20_000;
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-/** 품목명으로 인정할 패턴 (DRAM 칩/모듈 표기 휴리스틱) */
-const ITEM_PATTERN = /(DDR\d|LPDDR|GDDR|DXI|eTT|\d+\s*G[bB]?\s*\(?\d*Gx\d+\)?)/;
+/** 품목명으로 인정할 패턴 — DRAM + NAND 플래시 + HBM 계열 전체 */
+const ITEM_PATTERN =
+  /(DDR\d|LPDDR|GDDR|HBM|DXI|eTT|NAND|FLASH|TLC|MLC|QLC|SLC|WAFER|SSD|\d+\s*G[bB]?\s*\(?\d*Gx\d+\)?)/i;
 
 /** 숫자 추출: "3.125", "1,234.5", "-0.83%" 모두 대응 */
 function toNumber(text) {

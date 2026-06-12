@@ -106,6 +106,7 @@ export default function SpotPanel() {
   const [data, setData] = useState<SpotSeries[] | null>(null);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string>("");
+  const [defaultItem, setDefaultItem] = useState<string>("");
   const [indexed, setIndexed] = useState(false);
 
   /** 데이터 로드 */
@@ -130,6 +131,7 @@ export default function SpotPanel() {
             (a, b) => b.points.length - a.points.length,
           )[0];
           setSelected(longest.item);
+          setDefaultItem(longest.item);
         }
       } catch {
         if (!cancelled) setError("네트워크 오류가 발생했습니다.");
@@ -210,22 +212,34 @@ export default function SpotPanel() {
         <div className="flex flex-1 flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
             <h2 className="font-mono text-sm font-bold text-[var(--text)]">
-              DRAM 현물가 추이
+              메모리 현물가 추이
               {selected && (
                 <span className="ml-2 font-normal text-[var(--muted)]">
                   {selected}
                 </span>
               )}
             </h2>
-            <label className="flex cursor-pointer items-center gap-1.5 font-mono text-xs text-[var(--muted)]">
-              <input
-                type="checkbox"
-                checked={indexed}
-                onChange={(e) => setIndexed(e.target.checked)}
-                className="accent-[var(--accent)]"
-              />
-              지수화 (첫 데이터=100)
-            </label>
+            <div className="flex items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-1.5 font-mono text-xs text-[var(--muted)]">
+                <input
+                  type="checkbox"
+                  checked={indexed}
+                  onChange={(e) => setIndexed(e.target.checked)}
+                  className="accent-[var(--accent)]"
+                />
+                지수화 (첫 데이터=100)
+              </label>
+              <button
+                onClick={() => {
+                  setSelected(defaultItem);
+                  setIndexed(false);
+                  chartRef.current?.timeScale().fitContent();
+                }}
+                className="rounded border border-[var(--border)] px-2 py-0.5 font-mono text-[11px] text-[var(--muted)] transition-colors hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+              >
+                ⟲ 초기화
+              </button>
+            </div>
           </div>
           <div className="relative h-[45dvh] p-2 xl:h-auto xl:min-h-[28rem] xl:flex-1">
             <div ref={containerRef} className="h-full w-full" />
@@ -249,7 +263,7 @@ export default function SpotPanel() {
             )}
           </div>
           <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
-            일별 품목: DRAMeXchange 현물가 자동 수집 (Session Average) ·
+            일별 품목(DRAM·NAND 등): DRAMeXchange 현물가 자동 수집 (Session Average) ·
             &ldquo;고정거래가(월별·보도치)&rdquo; 품목: 언론 보도된 월별
             계약가격으로 장기 추세 참고용 (data/spot-history.json에 매월 추가).
             개인 연구용.

@@ -118,7 +118,7 @@ function Dashboard() {
             {(
               [
                 ["stocks", "실시간 차트"],
-                ["spot", "DRAM 현물가"],
+                ["spot", "메모리 현물가"],
                 ["fundamentals", "펀더멘털"],
                 ["share", "점유율"],
               ] as [View, string][]
