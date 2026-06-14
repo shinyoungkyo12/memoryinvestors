@@ -59,6 +59,11 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
         />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9561498930140577"
+          crossOrigin="anonymous"
+        />
       </head>
       <body className="antialiased">{children}</body>
     </html>
