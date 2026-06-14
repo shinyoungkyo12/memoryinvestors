@@ -186,18 +186,26 @@ function StockDetailInner({ ticker }: { ticker: string }) {
               <div className="flex items-baseline gap-6">
                 <div>
                   <div className="font-mono text-[10px] text-[var(--muted)]">
-                    재고자산 ({invUnit})
+                    재고자산
                   </div>
                   <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
-                    {latestInv.inventoryB.toLocaleString()}
+                    {latestInv.inventoryB.toLocaleString("ko-KR")}
+                    <span className="ml-1 text-xs font-normal text-[var(--muted)]">
+                      {invUnit}
+                    </span>
                   </div>
                 </div>
                 <div>
                   <div className="font-mono text-[10px] text-[var(--muted)]">
-                    DIO (일)
+                    DIO
                   </div>
                   <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
                     {latestInv.dio ?? "—"}
+                    {latestInv.dio != null && (
+                      <span className="ml-1 text-xs font-normal text-[var(--muted)]">
+                        일
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="font-mono text-[10px] text-[var(--muted)]">
