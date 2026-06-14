@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   DEFAULT_TICKER,
@@ -14,11 +15,21 @@ import { MarketFeedProvider, useMarketFeed, type Quote } from "@/lib/market-feed
 import Watchlist from "@/components/Watchlist";
 import TickerTape from "@/components/TickerTape";
 import SummaryBar from "@/components/SummaryBar";
+import MemoryIndexChart from "@/components/MemoryIndexChart";
+import NightFutureBanner from "@/components/NightFutureBanner";
+import BottomTabBar from "@/components/BottomTabBar";
+import PullToRefresh from "@/components/PullToRefresh";
+import TrendStrengthPanel from "@/components/TrendStrengthPanel";
+import FeedbackPanel from "@/components/FeedbackPanel";
 import InfoBox from "@/components/InfoBox";
 
 const CandleChart = dynamic(() => import("@/components/CandleChart"), {
   ssr: false,
 });
+const OverseasNightChart = dynamic(
+  () => import("@/components/OverseasNightChart"),
+  { ssr: false },
+);
 
 const SpotPanel = dynamic(() => import("@/components/SpotPanel"), {
   ssr: false,
@@ -34,7 +45,13 @@ const MarketSharePanel = dynamic(
   { ssr: false },
 );
 
-type View = "stocks" | "spot" | "fundamentals" | "share";
+type View =
+  | "memindex"
+  | "stocks"
+  | "spot"
+  | "fundamentals"
+  | "share"
+  | "feedback";
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
@@ -95,10 +112,13 @@ function SelectedHeader({ ticker }: { ticker: string }) {
 function Dashboard() {
   const [ticker, setTicker] = useState(DEFAULT_TICKER);
   const [interval, setInterval] = useState<Interval>("1day");
-  const [view, setView] = useState<View>("stocks");
+  const [view, setView] = useState<View>("memindex");
+  /** 차트 모드: 현물 | 해외야간시세(독일 GDR). 삼성·하이닉스만 야간 지원 */
+  const [priceMode, setPriceMode] = useState<"spot" | "night">("spot");
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
+      <PullToRefresh />
       {/* 상단 바 */}
       <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5">
         <div className="flex items-baseline gap-1 font-mono">
@@ -115,14 +135,16 @@ function Dashboard() {
         <div className="flex items-center gap-3">
           <nav
             aria-label="화면 전환"
-            className="flex overflow-hidden rounded-md border border-[var(--border)]"
+            className="hidden overflow-hidden rounded-md border border-[var(--border)] lg:flex"
           >
             {(
               [
+                ["memindex", "메모리 지수"],
                 ["stocks", "실시간 차트"],
-                ["spot", "메모리 현물가"],
+                ["spot", "메모리현물가"],
                 ["fundamentals", "펀더멘털"],
                 ["share", "점유율"],
+                ["feedback", "피드백"],
               ] as [View, string][]
             ).map(([v, label]) => (
               <button
@@ -144,10 +166,28 @@ function Dashboard() {
       </header>
 
       <TickerTape />
+      <NightFutureBanner />
       <SummaryBar onNavigate={setView} />
 
       {/* 본문 */}
-      {view === "spot" ? (
+      {view === "memindex" ? (
+        <div className="flex flex-1 flex-col gap-3 p-3">
+          <MemoryIndexChart
+            onSelectStock={(t) => {
+              setTicker(t);
+              setPriceMode("spot");
+              setView("stocks");
+            }}
+          />
+          <TrendStrengthPanel
+            onSelectStock={(t) => {
+              setTicker(t);
+              setPriceMode("spot");
+              setView("stocks");
+            }}
+          />
+        </div>
+      ) : view === "spot" ? (
         <div className="flex-1 p-3">
           <SpotPanel />
         </div>
@@ -159,41 +199,95 @@ function Dashboard() {
         <div className="flex-1 p-3">
           <MarketSharePanel />
         </div>
+      ) : view === "feedback" ? (
+        <div className="flex-1 p-3">
+          <FeedbackPanel />
+        </div>
       ) : (
       <div className="flex flex-1 flex-col gap-3 p-3 lg:flex-row">
         {/* 관심종목 */}
         <aside className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2 lg:w-64">
-          <Watchlist selected={ticker} onSelect={setTicker} />
+          <Watchlist
+            selected={ticker}
+            onSelect={(t) => {
+              setTicker(t);
+              setPriceMode("spot");
+            }}
+          />
         </aside>
 
         {/* 차트 영역 */}
         <main className="flex min-h-[60dvh] flex-1 flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)]">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
-            <SelectedHeader ticker={ticker} />
-            <div
-              role="tablist"
-              aria-label="차트 인터벌"
-              className="flex overflow-hidden rounded-md border border-[var(--border)]"
-            >
-              {INTERVALS.map((iv) => (
-                <button
-                  key={iv}
-                  role="tab"
-                  aria-selected={interval === iv}
-                  onClick={() => setInterval(iv)}
-                  className={`px-3 py-1.5 font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-                    interval === iv
-                      ? "bg-[var(--panel2)] font-semibold text-[var(--accent)]"
-                      : "text-[var(--muted)] hover:text-[var(--text)]"
-                  }`}
+            {priceMode === "night" &&
+            (ticker === "005930" || ticker === "000660") ? (
+              <h1 className="text-xl font-bold tracking-tight text-[var(--text)]">
+                {getSymbol(ticker)?.nameKo}
+                <span className="ml-2 font-mono text-sm font-normal text-[var(--muted)]">
+                  {ticker} · 독일 GDR 야간
+                </span>
+              </h1>
+            ) : (
+              <SelectedHeader ticker={ticker} />
+            )}
+            <div className="flex items-center gap-2">
+              {/* 삼성·하이닉스: 현물 / 해외야간시세 전환 */}
+              {(ticker === "005930" || ticker === "000660") && (
+                <div className="flex overflow-hidden rounded-md border border-[var(--border)]">
+                  <button
+                    onClick={() => setPriceMode("spot")}
+                    className={`px-3 py-1.5 font-mono text-xs transition-colors ${
+                      priceMode === "spot"
+                        ? "bg-[var(--panel2)] font-semibold text-[var(--accent)]"
+                        : "text-[var(--muted)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    현물
+                  </button>
+                  <button
+                    onClick={() => setPriceMode("night")}
+                    className={`px-3 py-1.5 font-mono text-xs transition-colors ${
+                      priceMode === "night"
+                        ? "bg-[var(--panel2)] font-semibold text-[var(--accent)]"
+                        : "text-[var(--muted)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    해외야간시세
+                  </button>
+                </div>
+              )}
+              {priceMode === "spot" && (
+                <div
+                  role="tablist"
+                  aria-label="차트 인터벌"
+                  className="flex overflow-hidden rounded-md border border-[var(--border)]"
                 >
-                  {INTERVAL_LABELS[iv]}
-                </button>
-              ))}
+                  {INTERVALS.map((iv) => (
+                    <button
+                      key={iv}
+                      role="tab"
+                      aria-selected={interval === iv}
+                      onClick={() => setInterval(iv)}
+                      className={`px-3 py-1.5 font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+                        interval === iv
+                          ? "bg-[var(--panel2)] font-semibold text-[var(--accent)]"
+                          : "text-[var(--muted)] hover:text-[var(--text)]"
+                      }`}
+                    >
+                      {INTERVAL_LABELS[iv]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="h-[55dvh] p-2 lg:h-auto lg:min-h-0 lg:flex-1">
-            <CandleChart ticker={ticker} interval={interval} />
+            {priceMode === "night" &&
+            (ticker === "005930" || ticker === "000660") ? (
+              <OverseasNightChart ticker={ticker} />
+            ) : (
+              <CandleChart ticker={ticker} interval={interval} />
+            )}
           </div>
           <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
             미국: Finnhub 실시간 체결 + Twelve Data 과거봉 · 한국: KIS 실시간
@@ -232,6 +326,25 @@ function Dashboard() {
         </main>
       </div>
       )}
+
+      <footer className="border-t border-[var(--border)] px-4 py-4">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-[var(--muted)]">
+            <Link href="/guide" className="hover:text-[var(--accent)]">
+              용어사전
+            </Link>
+            <Link href="/faq" className="hover:text-[var(--accent)]">
+              자주 묻는 질문
+            </Link>
+          </nav>
+          <p className="font-mono text-[10px] text-[var(--muted)]">
+            투자 참고용 정보이며 투자 권유가 아닙니다. 실제 거래 시 증권사 정식
+            시세를 확인하세요.
+          </p>
+        </div>
+      </footer>
+
+      <BottomTabBar view={view} onChange={setView} />
     </div>
   );
 }

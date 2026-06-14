@@ -235,9 +235,15 @@ export default function FundamentalsPanel() {
   }
 
   return (
-    <div className="grid gap-3 xl:grid-cols-2">
-      {/* ② 반도체 재고 수준 */}
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
+    <div className="flex flex-col gap-6">
+      {/* ━━━ 재고 ━━━ */}
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 font-mono text-base font-bold text-[var(--text)]">
+          <span className="text-[var(--accent)]">●</span> 재고
+        </h2>
+        <div className="grid gap-3 xl:grid-cols-2">
+          {/* ② 반도체 재고 수준 */}
+          <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
             반도체 재고 수준
@@ -393,9 +399,17 @@ export default function FundamentalsPanel() {
           />
         </div>
       </section>
+        </div>
+      </div>
 
-      {/* ③ HBM 수주 현황 타임라인 (수동 큐레이션) */}
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
+      {/* ━━━ 뉴스 ━━━ */}
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 font-mono text-base font-bold text-[var(--text)]">
+          <span className="text-[var(--accent)]">●</span> 뉴스
+        </h2>
+        <div className="grid gap-3 xl:grid-cols-2">
+          {/* ③ HBM 수주 현황 타임라인 (수동 큐레이션) */}
+          <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="border-b border-[var(--border)] px-4 py-3">
           <h2 className="font-mono text-sm font-bold text-[var(--text)]">
             메모리반도체주식 수주이슈
@@ -498,6 +512,8 @@ export default function FundamentalsPanel() {
           좌측 타임라인(JSON)에 추가하세요.
         </p>
       </section>
+        </div>
+      </div>
     </div>
   );
 }

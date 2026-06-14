@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   KR_SYMBOLS,
   US_SYMBOLS,
@@ -88,12 +89,26 @@ export default function Watchlist({ selected, onSelect }: Props) {
           </div>
           <ul className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
             {g.items.map((s) => (
-              <li key={s.ticker} className="w-44 shrink-0 lg:w-auto lg:shrink">
-                <SymbolButton
-                  s={s}
-                  active={s.ticker === selected}
-                  onSelect={onSelect}
-                />
+              <li
+                key={s.ticker}
+                className="flex w-44 shrink-0 items-center gap-1 lg:w-auto lg:shrink"
+              >
+                <div className="min-w-0 flex-1">
+                  <SymbolButton
+                    s={s}
+                    active={s.ticker === selected}
+                    onSelect={onSelect}
+                  />
+                </div>
+                <Link
+                  href={`/stock/${s.ticker}`}
+                  title={`${s.nameKo} 상세 페이지`}
+                  aria-label={`${s.nameKo} 상세 페이지`}
+                  className="flex shrink-0 items-center gap-0.5 rounded border border-[var(--border)] px-1.5 py-1 font-mono text-[10px] text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--panel2)] hover:text-[var(--accent)]"
+                >
+                  상세
+                  <span aria-hidden="true">›</span>
+                </Link>
               </li>
             ))}
           </ul>

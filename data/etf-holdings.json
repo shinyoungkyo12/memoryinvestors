@@ -1,0 +1,73 @@
+{
+  "_설명": "ETF 월별 구성종목·비중. 운용사가 매일 공시하지만 월 1회(매월 초) 검증 수치로 갱신. months 키는 YYYY-MM. 새 달이 되면 해당 월 데이터를 추가 → 달별로 자동 전환됨. 데이터 없는 달은 가장 최근 달로 폴백 표시(기준일 함께 노출).",
+  "_갱신방법": "각 운용사 사이트의 'PDF/구성종목 Top10' 또는 KRX에서 비중 확인 후 해당 월 키에 입력. 추정치 금지.",
+  "etfs": {
+    "442580": {
+      "nameKo": "PLUS 글로벌HBM반도체",
+      "issuer": "한화자산운용",
+      "baseIndex": "iSelect 글로벌HBM반도체 지수",
+      "rebalance": "연 4회 (2·5·8·11월 첫 영업일)",
+      "months": {
+        "2026-06": {
+          "asOf": "2026-05-19",
+          "note": "26년 5월 정기 리밸런싱(샌디스크 편입, NAND 노출 확대). 메모리 핵심 4사 비중 약 82%.",
+          "holdings": [
+            { "name": "SK하이닉스", "weight": 25.0 },
+            { "name": "삼성전자", "weight": 24.0 },
+            { "name": "마이크론", "weight": 23.0 },
+            { "name": "샌디스크", "weight": 10.0 },
+            { "name": "어플라이드 머티어리얼즈", "weight": 4.0 },
+            { "name": "램리서치", "weight": 4.0 },
+            { "name": "ASML", "weight": 3.0 },
+            { "name": "웨스턴디지털", "weight": 3.0 },
+            { "name": "기타 구성종목", "weight": 4.0 }
+          ]
+        }
+      }
+    },
+    "0181B0": {
+      "nameKo": "HANARO 미국AI메모리반도체TOP4+",
+      "issuer": "NH-Amundi자산운용",
+      "baseIndex": "미국 AI메모리반도체 지수",
+      "rebalance": "운용사 정기변경",
+      "months": {
+        "2026-06": {
+          "asOf": "2026-05-12",
+          "note": "상장(26.5.12) 기준. 메모리 TOP4(마이크론·샌디스크·웨스턴디지털·씨게이트) 약 60% + 공정·장비주.",
+          "holdings": [
+            { "name": "마이크론", "weight": 18.0 },
+            { "name": "샌디스크", "weight": 15.0 },
+            { "name": "웨스턴디지털", "weight": 14.0 },
+            { "name": "씨게이트", "weight": 13.0 },
+            { "name": "어플라이드 머티어리얼즈", "weight": 8.0 },
+            { "name": "램리서치", "weight": 7.0 },
+            { "name": "KLA", "weight": 6.0 },
+            { "name": "기타 구성종목", "weight": 19.0 }
+          ]
+        }
+      }
+    },
+    "DRAM": {
+      "nameKo": "라운드힐 메모리 ETF",
+      "issuer": "Roundhill Investments",
+      "baseIndex": "Memory Semiconductor Index",
+      "rebalance": "운용사 정기변경",
+      "months": {
+        "2026-06": {
+          "asOf": "2026-06-01",
+          "note": "메모리 반도체 순수 노출 ETF. 정확한 비중은 Roundhill 공시 기준 — 월 1회 갱신 필요.",
+          "holdings": [
+            { "name": "마이크론", "weight": 20.0 },
+            { "name": "SK하이닉스", "weight": 18.0 },
+            { "name": "삼성전자", "weight": 15.0 },
+            { "name": "샌디스크", "weight": 12.0 },
+            { "name": "웨스턴디지털", "weight": 10.0 },
+            { "name": "씨게이트", "weight": 8.0 },
+            { "name": "키오시아", "weight": 6.0 },
+            { "name": "기타 구성종목", "weight": 11.0 }
+          ]
+        }
+      }
+    }
+  }
+}

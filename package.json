@@ -12,7 +12,9 @@
     "fundamentals": "node --env-file=.env.local scripts/collect-fundamentals.mjs",
     "fundamentals:dry": "node --env-file=.env.local scripts/collect-fundamentals.mjs --dry-run",
     "news": "node --env-file=.env.local scripts/collect-news-events.mjs",
-    "news:dry": "node --env-file=.env.local scripts/collect-news-events.mjs --dry-run"
+    "news:dry": "node --env-file=.env.local scripts/collect-news-events.mjs --dry-run",
+    "consensus": "node --env-file=.env.local scripts/collect-consensus.mjs",
+    "consensus:dry": "node --env-file=.env.local scripts/collect-consensus.mjs --dry-run"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
