@@ -41,7 +41,7 @@ function SymbolButton({
         <span className="block truncate text-sm font-semibold text-[var(--text)]">
           {s.nameKo}
         </span>
-        <span className="block font-mono text-[11px] text-[var(--muted)]">
+        <span className="block truncate font-mono text-[11px] text-[var(--muted)]">
           {s.ticker} · {s.category}
         </span>
       </span>
@@ -72,27 +72,32 @@ export default function Watchlist({ selected, onSelect }: Props) {
   ];
 
   return (
-    <nav
-      aria-label="관련주식"
-      className="flex flex-row gap-3 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0"
-    >
-      <div className="hidden border-b border-[var(--border)] px-2 pb-2 font-mono text-xs font-bold tracking-wide text-[var(--text)] lg:block">
-        관련주식
-        <span className="ml-1.5 font-normal text-[var(--muted)]">
-          전일종가 대비 %
+    <div>
+      {/* 제목 — 모바일/데스크톱 모두 표시 (모바일은 스크롤·선택 안내 포함) */}
+      <div className="mb-2 flex items-baseline justify-between gap-2 px-1 lg:border-b lg:border-[var(--border)] lg:px-2 lg:pb-2">
+        <span className="font-mono text-xs font-bold tracking-wide text-[var(--text)]">
+          종목 선택
+        </span>
+        <span className="font-mono text-[10px] text-[var(--muted)]">
+          <span className="lg:hidden">좌우로 스크롤 · 탭하면 차트 변경</span>
+          <span className="hidden lg:inline">전일종가 대비 %</span>
         </span>
       </div>
-      {groups.map((g) => (
-        <div key={g.label} className="shrink-0 lg:shrink">
-          <div className="mb-1 px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
-            {g.label}
-          </div>
-          <ul className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
-            {g.items.map((s) => (
-              <li
-                key={s.ticker}
-                className="flex w-44 shrink-0 items-center gap-1 lg:w-auto lg:shrink"
-              >
+      <nav
+        aria-label="종목 선택"
+        className="flex flex-row gap-3 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0"
+      >
+        {groups.map((g) => (
+          <div key={g.label} className="shrink-0 lg:shrink">
+            <div className="mb-1 px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              {g.label}
+            </div>
+            <ul className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
+              {g.items.map((s) => (
+                <li
+                  key={s.ticker}
+                  className="flex w-60 shrink-0 items-center gap-1 lg:w-auto lg:shrink"
+                >
                 <div className="min-w-0 flex-1">
                   <SymbolButton
                     s={s}
@@ -114,6 +119,7 @@ export default function Watchlist({ selected, onSelect }: Props) {
           </ul>
         </div>
       ))}
-    </nav>
+      </nav>
+    </div>
   );
 }
