@@ -14,10 +14,9 @@ import type { NewsItem } from "@/app/api/hbm-news/route";
 import InfoBox from "@/components/InfoBox";
 
 /**
- * 펀더멘털 패널 — 사진 체크리스트의 ②③④ 항목
+ * 펀더멘털 패널
  *  1) 반도체 재고 수준: 재고($B) 막대 + DIO(재고일수) 라인
- *  2) 엔비디아 가이던스: 분기 매출 실적 막대 + 가이던스 라인
- *  3) HBM 수주 현황: 이벤트 타임라인
+ *  2) HBM 수주 현황: 이벤트 타임라인 + 자동 뉴스 피드
  */
 
 const ACCENT = "#d8a24a";
@@ -123,44 +122,6 @@ function InventoryChart({
   return <div ref={ref} className="h-64 w-full sm:h-72" />;
 }
 
-function NvidiaChart({ data }: { data: FundamentalsResponse["nvidia"] }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || data.length === 0) return;
-    const chart = createChart(el, {
-      ...CHART_OPTS,
-      leftPriceScale: { visible: false, borderColor: "#1e2530" },
-    });
-    const bars = chart.addSeries(HistogramSeries, {
-      color: "#4a7c59",
-      priceFormat: { type: "price", precision: 1, minMove: 0.1 },
-    });
-    const guide = chart.addSeries(LineSeries, {
-      color: ACCENT,
-      lineWidth: 2,
-      lineStyle: 1, // 점선
-      pointMarkersVisible: true,
-      priceFormat: { type: "price", precision: 1, minMove: 0.1 },
-    });
-    bars.setData(
-      data
-        .filter((p) => p.actualB !== null)
-        .map((p) => ({ time: toTs(p.fiscalEnd), value: p.actualB as number })),
-    );
-    guide.setData(
-      data
-        .filter((p) => p.guidanceB !== null)
-        .map((p) => ({ time: toTs(p.fiscalEnd), value: p.guidanceB as number })),
-    );
-    chart.timeScale().fitContent();
-    return () => chart.remove();
-  }, [data]);
-
-  return <div ref={ref} className="h-64 w-full sm:h-72" />;
-}
-
 const COMPANY_COLORS: Record<string, string> = {
   삼성전자: "#3182f6",
   SK하이닉스: "#f04452",
@@ -241,7 +202,7 @@ export default function FundamentalsPanel() {
         <h2 className="mb-3 flex items-center gap-2 font-mono text-base font-bold text-[var(--text)]">
           <span className="text-[var(--accent)]">●</span> 재고
         </h2>
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3">
           {/* ② 반도체 재고 수준 */}
           <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
@@ -333,67 +294,6 @@ export default function FundamentalsPanel() {
                 icon: "🏭",
                 label: "기업 간 비교",
                 desc: "같은 시점에 특정 기업만 DIO가 높다면 제품 믹스·수율 문제일 수 있어 상대 비교가 중요합니다.",
-              },
-            ]}
-          />
-        </div>
-      </section>
-
-      {/* ④ 엔비디아 가이던스 */}
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
-        <div className="border-b border-[var(--border)] px-4 py-3">
-          <h2 className="font-mono text-sm font-bold text-[var(--text)]">
-            엔비디아 분기 매출: 실적 vs 가이던스
-            <span className="ml-2 font-normal text-[var(--muted)]">
-              막대: 실적($B) · 점선: 가이던스
-            </span>
-            {data?.nvidia?.length ? (
-              <span className="ml-2 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-normal text-[var(--muted)]">
-                기준 {data.nvidia.at(-1)?.fiscalEnd.slice(0, 7)}
-              </span>
-            ) : null}
-          </h2>
-        </div>
-        <div className="p-2">
-          {data.nvidia.length > 0 ? (
-            <NvidiaChart data={data.nvidia} />
-          ) : (
-            <div className="flex h-64 flex-col items-center justify-center gap-2 text-center text-sm text-[var(--muted)]">
-              <span>아직 수집된 매출 데이터가 없습니다.</span>
-              <span className="text-xs">
-                GitHub → Actions → &ldquo;펀더멘털 수집&rdquo; → Run workflow
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--muted)]">
-          실적: SEC EDGAR · 가이던스: 실적발표 outlook 중간값
-          (data/nvda-guidance.json 수동 관리).
-        </p>
-        <div className="px-2 pb-2">
-          <InfoBox
-            title="엔비디아 실적이 왜 메모리 지표인가요?"
-            intro="HBM 수요의 최대 원천이 엔비디아 AI 가속기입니다. 엔비디아의 매출 가이던스는 곧 '다음 분기에 GPU를 얼마나 출하할 계획인가'를 의미하고, GPU 한 장마다 HBM이 대량 탑재되므로 삼성·하이닉스·마이크론의 HBM 매출을 한 분기 먼저 보여주는 선행지표가 됩니다."
-            signals={[
-              {
-                icon: "🚀",
-                label: "실적이 가이던스 대폭 상회",
-                desc: "AI 수요가 회사 예상보다 빠르게 성장 중 — HBM 공급사 실적 상향 기대가 같이 커집니다.",
-              },
-              {
-                icon: "⚠️",
-                label: "상회 폭 축소",
-                desc: "여전히 성장하지만 서프라이즈가 줄어드는 것 — 모멘텀 둔화의 초기 신호로 해석되곤 합니다.",
-              },
-              {
-                icon: "📉",
-                label: "가이던스 하회",
-                desc: "AI 수요 둔화 — 메모리 주식 전반의 동반 조정 위험이 커지는 경고입니다.",
-              },
-              {
-                icon: "🗓️",
-                label: "발표 일정",
-                desc: "엔비디아 실적은 2·5·8·11월 말 발표 — 발표일 전후 메모리 주식 변동성이 커집니다.",
               },
             ]}
           />
