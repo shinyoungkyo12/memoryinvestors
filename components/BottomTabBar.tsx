@@ -57,13 +57,13 @@ export default function BottomTabBar({
               <button
                 onClick={() => onChange(t.key)}
                 aria-current={active ? "page" : undefined}
-                className={`flex w-full flex-col items-center gap-0.5 py-2 transition-colors ${
+                className={`flex w-full flex-col items-center gap-1 py-3 transition-colors ${
                   active ? "text-[var(--accent)]" : "text-[var(--muted)]"
                 }`}
               >
                 <svg
-                  width="22"
-                  height="22"
+                  width="26"
+                  height="26"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -73,7 +73,7 @@ export default function BottomTabBar({
                 >
                   <path d={t.icon} />
                 </svg>
-                <span className="font-mono text-[9px] leading-tight">{t.label}</span>
+                <span className="font-mono text-[10px] leading-tight">{t.label}</span>
               </button>
             </li>
           );
