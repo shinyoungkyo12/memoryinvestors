@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -57,6 +57,10 @@ type View =
   | "share"
   | "compare"
   | "feedback";
+
+const VALID_VIEWS = new Set<View>([
+  "memindex", "stocks", "spot", "fundamentals", "share", "compare", "feedback",
+]);
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
@@ -121,6 +125,27 @@ function Dashboard() {
   /** 차트 모드: 현물 | 해외야간시세(독일 GDR). 삼성·하이닉스만 야간 지원 */
   const [priceMode, setPriceMode] = useState<"spot" | "night">("spot");
 
+  // Sync view with browser history so back/forward buttons work
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("v") as View | null;
+    const initial: View = v && VALID_VIEWS.has(v) ? v : "memindex";
+    setView(initial);
+    window.history.replaceState({ v: initial }, "");
+
+    const onPopState = (e: PopStateEvent) => {
+      const pv = (e.state?.v ?? "memindex") as View;
+      setView(VALID_VIEWS.has(pv) ? pv : "memindex");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const navigate = (v: View) => {
+    window.history.pushState({ v }, "", `?v=${v}`);
+    setView(v);
+  };
+
   return (
     <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
       <PullToRefresh />
@@ -155,7 +180,7 @@ function Dashboard() {
             ).map(([v, label]) => (
               <button
                 key={v}
-                onClick={() => setView(v)}
+                onClick={() => navigate(v)}
                 aria-current={view === v ? "page" : undefined}
                 className={`px-3 py-1.5 font-mono text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                   view === v
@@ -173,7 +198,7 @@ function Dashboard() {
 
       <TickerTape />
       <NightFutureBanner />
-      <SummaryBar onNavigate={setView} />
+      <SummaryBar onNavigate={navigate} />
 
       {/* 본문 */}
       {view === "memindex" ? (
@@ -182,14 +207,14 @@ function Dashboard() {
             onSelectStock={(t) => {
               setTicker(t);
               setPriceMode("spot");
-              setView("stocks");
+              navigate("stocks");
             }}
           />
           <TrendStrengthPanel
             onSelectStock={(t) => {
               setTicker(t);
               setPriceMode("spot");
-              setView("stocks");
+              navigate("stocks");
             }}
           />
         </div>
@@ -354,7 +379,7 @@ function Dashboard() {
         </div>
       </footer>
 
-      <BottomTabBar view={view} onChange={setView} />
+      <BottomTabBar view={view} onChange={navigate} />
     </div>
   );
 }
