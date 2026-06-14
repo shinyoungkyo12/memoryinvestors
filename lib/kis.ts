@@ -126,3 +126,80 @@ export async function fetchKisPrice(code: string): Promise<KisPrice | null> {
     return null;
   }
 }
+
+/* ─────────────── 코스피200 야간선물 (CME 연계) ───────────────
+ * 야간선물은 CME 연계 글로벌 시장(18:00~익일 05:00 KST)에만 체결.
+ * KIS 지수선물 시세 조회: 선물옵션 시세 API.
+ *  - tr_id: FHMIF10000000 (지수선물 현재가)
+ *  - FID_COND_MRKT_DIV_CODE: "F" (지수선물)
+ *  - 야간(CME) 선물 종목코드는 주간물과 다름 → KIS_NIGHT_FUTURES_CODE 로 주입.
+ *    (운영 중 정확한 코드 확인 후 환경변수로 설정. 기본값은 근월물 추정코드)
+ *
+ * 주의: 선물 종목코드는 만기마다 바뀜(예: 101W12, 105V...). 정확한 야간선물
+ *       종목코드는 KIS 종목마스터/문서에서 확인해 KIS_NIGHT_FUTURES_CODE 로 설정.
+ */
+
+export interface KisFuture {
+  /** 현재가(지수 포인트) */
+  price: number;
+  /** 전일 대비 */
+  diff: number;
+  /** 전일 대비율(%) */
+  changePct: number;
+  /** 종목코드(디버깅용) */
+  code: string;
+}
+
+/** 코스피200 야간선물 현재가 조회 (CME 연계) */
+export async function fetchKisNightFuture(): Promise<KisFuture | null> {
+  const token = await getToken();
+  const appKey = process.env.KIS_APP_KEY;
+  const appSecret = process.env.KIS_APP_SECRET;
+  if (!token || !appKey || !appSecret) return null;
+
+  // 야간선물 종목코드: 환경변수 우선, 없으면 코스피200 야간선물 관용 코드 시도
+  const code = process.env.KIS_NIGHT_FUTURES_CODE || "101V06";
+
+  const url = new URL(
+    `${KIS_BASE}/uapi/domestic-futureoption/v1/quotations/inquire-price`,
+  );
+  url.searchParams.set("FID_COND_MRKT_DIV_CODE", "F");
+  url.searchParams.set("FID_INPUT_ISCD", code);
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`,
+        appkey: appKey,
+        appsecret: appSecret,
+        tr_id: "FHMIF10000000",
+        custtype: "P",
+      },
+      cache: "no-store",
+    });
+    const json = (await res.json()) as {
+      rt_cd?: string;
+      msg1?: string;
+      output?: {
+        futs_prpr?: string; // 선물 현재가
+        prpr?: string; // 현재가(대체 키)
+        prdy_vrss?: string; // 전일 대비
+        prdy_ctrt?: string; // 전일 대비율
+      };
+    };
+    if (json.rt_cd !== "0" || !json.output) {
+      console.error("[KIS] 야간선물 조회 실패:", json.msg1, "code:", code);
+      return null;
+    }
+    const o = json.output;
+    const price = Number(o.futs_prpr ?? o.prpr);
+    const diff = Number(o.prdy_vrss ?? 0);
+    const changePct = Number(o.prdy_ctrt ?? 0);
+    if (!Number.isFinite(price) || price <= 0) return null;
+    return { price, diff, changePct, code };
+  } catch (e) {
+    console.error("[KIS] 야간선물 요청 오류:", e);
+    return null;
+  }
+}
