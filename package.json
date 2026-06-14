@@ -17,6 +17,7 @@
     "consensus:dry": "node --env-file=.env.local scripts/collect-consensus.mjs --dry-run"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "cheerio": "^1.2.0",
     "lightweight-charts": "^5.2.0",
     "next": "16.2.9",
