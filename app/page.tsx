@@ -45,12 +45,17 @@ const MarketSharePanel = dynamic(
   { ssr: false },
 );
 
+const ComparePanel = dynamic(() => import("@/components/ComparePanel"), {
+  ssr: false,
+});
+
 type View =
   | "memindex"
   | "stocks"
   | "spot"
   | "fundamentals"
   | "share"
+  | "compare"
   | "feedback";
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
@@ -144,6 +149,7 @@ function Dashboard() {
                 ["spot", "메모리현물가"],
                 ["fundamentals", "펀더멘털"],
                 ["share", "점유율"],
+                ["compare", "비교"],
                 ["feedback", "피드백"],
               ] as [View, string][]
             ).map(([v, label]) => (
@@ -198,6 +204,10 @@ function Dashboard() {
       ) : view === "share" ? (
         <div className="flex-1 p-3">
           <MarketSharePanel />
+        </div>
+      ) : view === "compare" ? (
+        <div className="flex-1 p-3">
+          <ComparePanel />
         </div>
       ) : view === "feedback" ? (
         <div className="flex-1 p-3">
