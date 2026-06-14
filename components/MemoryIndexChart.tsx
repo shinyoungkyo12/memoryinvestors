@@ -280,8 +280,8 @@ export default function MemoryIndexChart({
             </div>
             <div className="font-mono text-[10px] text-[var(--muted)]">
               {shownPoint
-                ? `${shownPoint.date} 기준${hover ? " (호버)" : " (최신)"}`
-                : "차트에 마우스를 올리면 해당 시점 표시"}
+                ? `${shownPoint.date} 기준${hover ? " (선택 시점)" : " (최신)"}`
+                : "차트를 터치·마우스 오버하면 해당 시점 표시"}
             </div>
           </div>
           <ul className="p-2">

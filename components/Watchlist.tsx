@@ -104,7 +104,7 @@ export default function Watchlist({ selected, onSelect }: Props) {
                   href={`/stock/${s.ticker}`}
                   title={`${s.nameKo} 상세 페이지`}
                   aria-label={`${s.nameKo} 상세 페이지`}
-                  className="flex shrink-0 items-center gap-0.5 rounded border border-[var(--border)] px-1.5 py-1 font-mono text-[10px] text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--panel2)] hover:text-[var(--accent)]"
+                  className="flex shrink-0 items-center gap-0.5 self-stretch rounded border border-[var(--border)] px-2.5 py-1 font-mono text-[11px] text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--panel2)] hover:text-[var(--accent)]"
                 >
                   상세
                   <span aria-hidden="true">›</span>

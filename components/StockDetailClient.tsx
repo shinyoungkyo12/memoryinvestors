@@ -29,6 +29,7 @@ function StockDetailInner({ ticker }: { ticker: string }) {
   const { quotes } = useMarketFeed();
   const [interval, setInterval] = useState<Interval>("1day");
   const [fund, setFund] = useState<FundamentalsResponse | null>(null);
+  const [fundLoading, setFundLoading] = useState(true);
   const [news, setNews] = useState<StockNewsItem[] | null>(null);
 
   useEffect(() => {
@@ -39,7 +40,9 @@ function StockDetailInner({ ticker }: { ticker: string }) {
         const fJson = (await fRes.json()) as FundamentalsResponse;
         if (!cancelled) setFund(fJson);
       } catch {
-        /* 무시 */
+        /* 무시 — fundLoading 종료로 '데이터 없음' 표시 */
+      } finally {
+        if (!cancelled) setFundLoading(false);
       }
     })();
     return () => {
@@ -175,7 +178,11 @@ function StockDetailInner({ ticker }: { ticker: string }) {
             <div className="mb-2 font-mono text-sm font-bold text-[var(--text)]">
               재고 / 재고일수 (DIO)
             </div>
-            {latestInv ? (
+            {fundLoading ? (
+              <div className="font-mono text-xs text-[var(--muted)]">
+                재고 데이터 불러오는 중…
+              </div>
+            ) : latestInv ? (
               <div className="flex items-baseline gap-6">
                 <div>
                   <div className="font-mono text-[10px] text-[var(--muted)]">
@@ -215,7 +222,11 @@ function StockDetailInner({ ticker }: { ticker: string }) {
             관련 수주이슈
           </div>
           <ul className="max-h-72 overflow-y-auto p-2">
-            {events.length > 0 ? (
+            {fundLoading ? (
+              <li className="px-2 py-6 text-center font-mono text-xs text-[var(--muted)]">
+                수주이슈 불러오는 중…
+              </li>
+            ) : events.length > 0 ? (
               events.map((e) => (
                 <li
                   key={e.url}
