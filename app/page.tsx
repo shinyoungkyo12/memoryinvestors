@@ -55,11 +55,10 @@ type View =
   | "spot"
   | "fundamentals"
   | "share"
-  | "compare"
   | "feedback";
 
 const VALID_VIEWS = new Set<View>([
-  "memindex", "stocks", "spot", "fundamentals", "share", "compare", "feedback",
+  "memindex", "stocks", "spot", "fundamentals", "share", "feedback",
 ]);
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
@@ -151,7 +150,11 @@ function Dashboard() {
       <PullToRefresh />
       {/* 상단 바 */}
       <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5">
-        <div className="flex items-baseline gap-1 font-mono">
+        <button
+          onClick={() => navigate("memindex")}
+          aria-label="홈으로"
+          className="flex items-baseline gap-1 font-mono transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        >
           <span className="text-sm font-bold tracking-tight text-[var(--text)]">
             MEMORY
           </span>
@@ -161,7 +164,7 @@ function Dashboard() {
           <span className="ml-2 hidden text-[10px] uppercase tracking-[0.2em] text-[var(--muted)] sm:inline">
             메모리 반도체 모니터
           </span>
-        </div>
+        </button>
         <div className="flex items-center gap-3">
           <nav
             aria-label="화면 전환"
@@ -174,7 +177,6 @@ function Dashboard() {
                 ["spot", "메모리현물가"],
                 ["fundamentals", "펀더멘털"],
                 ["share", "점유율"],
-                ["compare", "비교"],
                 ["feedback", "피드백"],
               ] as [View, string][]
             ).map(([v, label]) => (
@@ -229,10 +231,6 @@ function Dashboard() {
       ) : view === "share" ? (
         <div className="flex-1 p-3">
           <MarketSharePanel />
-        </div>
-      ) : view === "compare" ? (
-        <div className="flex-1 p-3">
-          <ComparePanel />
         </div>
       ) : view === "feedback" ? (
         <div className="flex-1 p-3">
