@@ -33,9 +33,11 @@ const HORIZONS = [
 const dayMs = 86_400_000;
 
 /**
- * targetDate 이전(포함)에서 가장 가까운 데이터 포인트를 반환.
- * tolerance 없이 항상 가장 가까운 과거 포인트를 반환 — "부재" 제거.
- * 단, latest와 동일 포인트인 경우(비교 불가) null 반환.
+ * targetDate에 가장 가까운 데이터 포인트를 반환.
+ * 1단계: target 이전(또는 당일) 포인트 우선 탐색.
+ * 2단계: 없으면 target 이후 14일 이내 포인트 허용
+ *        (백필 시작일이 1년 전 목표일보다 며칠 늦는 경계 케이스 대응).
+ * latest와 동일 날짜 포인트는 항상 제외.
  */
 function findNearest(
   points: SpotSeries["points"],
@@ -43,15 +45,25 @@ function findNearest(
   latestDate: string,
 ) {
   const target = Date.parse(targetDate);
+
+  // 1단계: target 이전 포인트 (이상적)
   let best: { price: number; date: string; gap: number } | null = null;
   for (const p of points) {
-    if (p.date === latestDate) continue; // latest와 동일한 포인트는 제외
+    if (p.date === latestDate) continue;
     const d = Date.parse(p.date);
-    if (d > target) continue; // 미래 포인트는 base로 사용 안 함
+    if (d > target) continue;
     const gap = (target - d) / dayMs;
-    if (!best || gap < best.gap) {
-      best = { price: p.price, date: p.date, gap };
-    }
+    if (!best || gap < best.gap) best = { price: p.price, date: p.date, gap };
+  }
+  if (best) return best;
+
+  // 2단계: target 이후 14일 이내 포인트 허용
+  for (const p of points) {
+    if (p.date === latestDate) continue;
+    const d = Date.parse(p.date);
+    if (d > target + 14 * dayMs) continue;
+    const gap = (d - target) / dayMs;
+    if (!best || gap < best.gap) best = { price: p.price, date: p.date, gap };
   }
   return best;
 }
