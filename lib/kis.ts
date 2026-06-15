@@ -157,8 +157,9 @@ export async function fetchKisNightFuture(): Promise<KisFuture | null> {
   const appSecret = process.env.KIS_APP_SECRET;
   if (!token || !appKey || !appSecret) return null;
 
-  // 야간선물 종목코드: 환경변수 우선, 없으면 코스피200 야간선물 관용 코드 시도
-  const code = process.env.KIS_NIGHT_FUTURES_CODE || "101V06";
+  // 야간선물 종목코드: 환경변수 우선. 기본값은 2026년 9월물 추정코드.
+  // 만기 후 코드가 바뀌므로 Vercel 환경변수 KIS_NIGHT_FUTURES_CODE로 주입할 것.
+  const code = process.env.KIS_NIGHT_FUTURES_CODE || "101V09";
 
   const url = new URL(
     `${KIS_BASE}/uapi/domestic-futureoption/v1/quotations/inquire-price`,
@@ -189,8 +190,8 @@ export async function fetchKisNightFuture(): Promise<KisFuture | null> {
       };
     };
     if (json.rt_cd !== "0" || !json.output) {
-      console.error("[KIS] 야간선물 조회 실패:", json.msg1, "code:", code);
-      return null;
+      console.error("[KIS] 야간선물 조회 실패:", json.msg1, "code:", code, "rt_cd:", json.rt_cd);
+      throw new Error(`KIS 오류: ${json.msg1 ?? "알 수 없음"} (code=${code})`);
     }
     const o = json.output;
     const price = Number(o.futs_prpr ?? o.prpr);

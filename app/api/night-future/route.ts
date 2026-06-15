@@ -70,7 +70,14 @@ export async function GET() {
     );
   }
 
-  const fut = await fetchKisNightFuture();
+  let fut = null;
+  let fetchError = "";
+  try {
+    fut = await fetchKisNightFuture();
+  } catch (e) {
+    fetchError = e instanceof Error ? e.message : "알 수 없는 오류";
+  }
+
   const data: NightFutureResponse = fut
     ? {
         available: true,
@@ -87,7 +94,7 @@ export async function GET() {
         diff: null,
         changePct: null,
         code: null,
-        error: "야간선물 시세 조회 실패 (종목코드 확인 필요)",
+        error: fetchError || "야간선물 시세 조회 실패",
       };
 
   if (fut) cache = { at: Date.now(), data };
