@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { ConsensusRow } from "@/app/api/consensus/route";
+import { getSymbol, formatPrice } from "@/lib/symbols";
 
 /**
- * 목표가 컨센서스 게이지
- * - 현재가 ─────● 목표가 막대 + 상승여력%
- * - ticker로 필터. 데이터 없으면 안내 (수집 전이거나 미국 종목)
+ * 증권사 목표가 컨센서스 — 최고 / 평균 / 최저 (Toss 형식)
+ * - 시각화 막대 없이 3단(최고·평균·최저) + 각 상승여력%
+ * - 한국(₩)·미국($) 통화 자동 처리, 애널리스트 수·투자의견 표기
+ * - 데이터 없으면 안내. 데이터는 주 2회(월·목) 자동 갱신.
  */
 
 export default function ConsensusGauge({ ticker }: { ticker: string }) {
@@ -42,30 +44,36 @@ export default function ConsensusGauge({ ticker }: { ticker: string }) {
     );
   }
 
-  if (!row || row.target_price == null || row.current_price == null) {
+  const mean = row?.target_mean ?? row?.target_price ?? null;
+  if (!row || mean == null || row.current_price == null) {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <div className="mb-1 font-mono text-sm font-bold text-[var(--text)]">
           증권사 목표가 컨센서스
         </div>
         <div className="font-mono text-xs leading-relaxed text-[var(--muted)]">
-          아직 수집된 컨센서스가 없습니다. 평일 장 마감 후(16:30 KST) 자동
-          갱신되며, 한국 2사(삼성·하이닉스)만 수집됩니다. 미국 종목은 네이버
-          금융 미제공이라 표시되지 않습니다.
+          아직 수집된 컨센서스가 없습니다. 주 2회(월·목) 자동 갱신되며, 한국·미국
+          개별주의 애널리스트 목표주가(최고·평균·최저)를 표시합니다.
         </div>
       </div>
     );
   }
 
+  const currency = getSymbol(ticker)?.currency ?? "KRW";
   const cur = row.current_price;
-  const tgt = row.target_price;
-  const up = (row.upside_pct ?? 0) >= 0;
-  // 막대 범위: 현재가/목표가 중 작은 값~큰 값
-  const lo = Math.min(cur, tgt);
-  const hi = Math.max(cur, tgt);
-  const span = hi - lo || 1;
-  const curPos = ((cur - lo) / span) * 100;
-  const tgtPos = ((tgt - lo) / span) * 100;
+  const fmt = (v: number) => formatPrice(v, currency);
+  const upsideOf = (v: number) =>
+    cur > 0 ? ((v - cur) / cur) * 100 : 0;
+
+  // 최고/평균/최저 — 값이 없으면 평균으로 대체(단일치만 있는 과거 데이터 호환)
+  const high = row.target_high ?? mean;
+  const low = row.target_low ?? mean;
+
+  const levels = [
+    { label: "최고", value: high, accent: "var(--up)" },
+    { label: "평균", value: mean, accent: "var(--accent)" },
+    { label: "최저", value: low, accent: "var(--down)" },
+  ];
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
@@ -80,50 +88,52 @@ export default function ConsensusGauge({ ticker }: { ticker: string }) {
         )}
       </div>
 
-      <div className="mb-2 flex items-baseline justify-between">
-        <div>
-          <div className="font-mono text-[10px] text-[var(--muted)]">현재가</div>
-          <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
-            ₩{Math.round(cur).toLocaleString("ko-KR")}
-          </div>
-        </div>
-        <div className="text-center">
-          <div className="font-mono text-[10px] text-[var(--muted)]">
-            상승여력
-          </div>
-          <div
-            className={`font-mono text-xl font-bold tabular-nums ${
-              up ? "text-[var(--up)]" : "text-[var(--down)]"
-            }`}
-          >
-            {up ? "+" : ""}
-            {row.upside_pct?.toFixed(1)}%
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="font-mono text-[10px] text-[var(--muted)]">목표가</div>
-          <div className="font-mono text-lg font-bold tabular-nums text-[var(--accent)]">
-            ₩{Math.round(tgt).toLocaleString("ko-KR")}
-          </div>
-        </div>
+      {/* 현재가 */}
+      <div className="mb-3 flex items-baseline justify-between border-b border-[var(--border)] pb-3">
+        <span className="font-mono text-[11px] text-[var(--muted)]">현재가</span>
+        <span className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
+          {fmt(cur)}
+        </span>
       </div>
 
-      {/* 게이지 막대 */}
-      <div className="relative mt-4 h-2 rounded-full bg-[var(--panel2)]">
-        <div
-          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-[var(--text)] bg-[var(--panel)]"
-          style={{ left: `calc(${curPos}% - 6px)` }}
-          title="현재가"
-        />
-        <div
-          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[var(--accent)]"
-          style={{ left: `calc(${tgtPos}% - 6px)` }}
-          title="목표가"
-        />
-      </div>
-      <div className="mt-3 font-mono text-[10px] text-[var(--muted)]">
-        자료: 네이버 금융 컨센서스 · {row.captured_at?.slice(0, 10)} 기준 · 정보
-        제공 목적, 투자 권유 아님
+      {/* 최고 / 평균 / 최저 */}
+      <ul className="flex flex-col gap-2.5">
+        {levels.map(({ label, value, accent }) => {
+          const up = upsideOf(value);
+          const isUp = up >= 0;
+          return (
+            <li
+              key={label}
+              className="flex items-center justify-between gap-2"
+            >
+              <span
+                className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold"
+                style={{ color: accent, backgroundColor: `${accent}1a` }}
+              >
+                {label}
+              </span>
+              <span className="flex items-baseline gap-2 tabular-nums">
+                <span className="font-mono text-base font-bold text-[var(--text)]">
+                  {fmt(value)}
+                </span>
+                <span
+                  className={`font-mono text-xs font-semibold ${
+                    isUp ? "text-[var(--up)]" : "text-[var(--down)]"
+                  }`}
+                >
+                  {isUp ? "+" : ""}
+                  {up.toFixed(1)}%
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-3 border-t border-[var(--border)] pt-2 font-mono text-[10px] leading-relaxed text-[var(--muted)]">
+        자료: Yahoo Finance 애널리스트 컨센서스
+        {row.analyst_count ? ` · ${row.analyst_count}개사` : ""} ·{" "}
+        {row.captured_at?.slice(0, 10)} 기준 · 정보 제공 목적, 투자 권유 아님
       </div>
     </div>
   );

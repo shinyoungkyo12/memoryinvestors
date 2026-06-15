@@ -45,10 +45,6 @@ const MarketSharePanel = dynamic(
   { ssr: false },
 );
 
-const ComparePanel = dynamic(() => import("@/components/ComparePanel"), {
-  ssr: false,
-});
-
 type View =
   | "memindex"
   | "stocks"
@@ -129,6 +125,8 @@ function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     const v = params.get("v") as View | null;
     const initial: View = v && VALID_VIEWS.has(v) ? v : "memindex";
+    // URL의 ?v= 로 초기 탭 동기화 (마운트 1회)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setView(initial);
     window.history.replaceState({ v: initial }, "");
 
@@ -138,7 +136,7 @@ function Dashboard() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const navigate = (v: View) => {
     window.history.pushState({ v }, "", `?v=${v}`);
