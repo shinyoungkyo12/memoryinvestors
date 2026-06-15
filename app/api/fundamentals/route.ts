@@ -56,7 +56,12 @@ async function supabaseSelect<T>(path: string): Promise<T[] | null> {
   if (!url || !key) return null;
   try {
     const res = await fetch(`${url}/rest/v1/${path}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Range: "0-9999",
+        "Range-Unit": "items",
+      },
       cache: "no-store",
     });
     if (!res.ok) return null;

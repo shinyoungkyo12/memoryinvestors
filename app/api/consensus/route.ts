@@ -45,7 +45,12 @@ export async function GET() {
     const res = await fetch(
       `${url}/rest/v1/consensus?select=*&order=upside_pct.desc`,
       {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Range: "0-999",
+          "Range-Unit": "items",
+        },
         cache: "no-store",
       },
     );

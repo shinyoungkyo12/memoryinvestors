@@ -47,9 +47,14 @@ export async function GET() {
   let rows: SpotRow[];
   try {
     const res = await fetch(
-      `${url}/rest/v1/dram_spot?select=captured_date,item,price,change_pct&order=captured_date.asc&limit=20000`,
+      `${url}/rest/v1/dram_spot?select=captured_date,item,price,change_pct&order=captured_date.asc`,
       {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Range: "0-49999",         // 최대 50,000행 요청 (기본 1,000행 한도 우회)
+          "Range-Unit": "items",
+        },
         cache: "no-store",
       },
     );
