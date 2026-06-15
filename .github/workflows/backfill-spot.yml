@@ -1,0 +1,46 @@
+name: 현물가 과거 데이터 백필 (Wayback Machine)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "시작 날짜 (YYYY-MM-DD). 기본값: 1년 전"
+        required: false
+        default: ""
+      end:
+        description: "종료 날짜 (YYYY-MM-DD). 기본값: 오늘"
+        required: false
+        default: ""
+      dry_run:
+        description: "dry-run (DB 저장 안 함, 파싱만 확인)"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: 현물가 과거 데이터 백필
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.start }}" ]; then
+            ARGS="$ARGS --start ${{ github.event.inputs.start }}"
+          fi
+          if [ -n "${{ github.event.inputs.end }}" ]; then
+            ARGS="$ARGS --end ${{ github.event.inputs.end }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          node scripts/backfill-spot.mjs $ARGS

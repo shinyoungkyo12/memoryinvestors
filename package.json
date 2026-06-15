@@ -14,7 +14,9 @@
     "news": "node --env-file=.env.local scripts/collect-news-events.mjs",
     "news:dry": "node --env-file=.env.local scripts/collect-news-events.mjs --dry-run",
     "consensus": "node --env-file=.env.local scripts/collect-consensus.mjs",
-    "consensus:dry": "node --env-file=.env.local scripts/collect-consensus.mjs --dry-run"
+    "consensus:dry": "node --env-file=.env.local scripts/collect-consensus.mjs --dry-run",
+    "backfill": "node --env-file=.env.local scripts/backfill-spot.mjs",
+    "backfill:dry": "node --env-file=.env.local scripts/backfill-spot.mjs --dry-run"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
