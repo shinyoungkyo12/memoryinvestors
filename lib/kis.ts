@@ -167,8 +167,10 @@ export async function fetchKisNightFuture(): Promise<KisFuture | null> {
   url.searchParams.set("FID_COND_MRKT_DIV_CODE", "F");
   url.searchParams.set("FID_INPUT_ISCD", code);
 
+  // 네트워크 오류만 catch — KIS API 오류(rt_cd≠0)는 throw해서 호출부로 전파
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
         authorization: `Bearer ${token}`,
@@ -179,28 +181,31 @@ export async function fetchKisNightFuture(): Promise<KisFuture | null> {
       },
       cache: "no-store",
     });
-    const json = (await res.json()) as {
-      rt_cd?: string;
-      msg1?: string;
-      output?: {
-        futs_prpr?: string; // 선물 현재가
-        prpr?: string; // 현재가(대체 키)
-        prdy_vrss?: string; // 전일 대비
-        prdy_ctrt?: string; // 전일 대비율
-      };
-    };
-    if (json.rt_cd !== "0" || !json.output) {
-      console.error("[KIS] 야간선물 조회 실패:", json.msg1, "code:", code, "rt_cd:", json.rt_cd);
-      throw new Error(`KIS 오류: ${json.msg1 ?? "알 수 없음"} (code=${code})`);
-    }
-    const o = json.output;
-    const price = Number(o.futs_prpr ?? o.prpr);
-    const diff = Number(o.prdy_vrss ?? 0);
-    const changePct = Number(o.prdy_ctrt ?? 0);
-    if (!Number.isFinite(price) || price <= 0) return null;
-    return { price, diff, changePct, code };
   } catch (e) {
-    console.error("[KIS] 야간선물 요청 오류:", e);
+    console.error("[KIS] 야간선물 네트워크 오류:", e);
     return null;
   }
+
+  const json = (await res.json()) as {
+    rt_cd?: string;
+    msg1?: string;
+    output?: {
+      futs_prpr?: string;
+      prpr?: string;
+      prdy_vrss?: string;
+      prdy_ctrt?: string;
+    };
+  };
+
+  if (json.rt_cd !== "0" || !json.output) {
+    // 오류 메시지를 배너까지 전파 (종목코드 오류, 권한 오류 등 진단용)
+    throw new Error(`KIS 오류[${json.rt_cd}]: ${json.msg1 ?? "알 수 없음"} (code=${code})`);
+  }
+
+  const o = json.output;
+  const price = Number(o.futs_prpr ?? o.prpr);
+  const diff = Number(o.prdy_vrss ?? 0);
+  const changePct = Number(o.prdy_ctrt ?? 0);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  return { price, diff, changePct, code };
 }
