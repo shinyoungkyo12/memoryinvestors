@@ -1,0 +1,1141 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "토스증권 Open API",
+    "version": "1.1.1"
+  },
+  "servers": [
+    {
+      "url": "https://openapi.tossinvest.com"
+    }
+  ],
+  "security": [
+    {
+      "oauth2ClientCredentials": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "토스증권 Open API의 모든 요청에 필요한 액세스 토큰을 발급하는 그룹입니다. OAuth 2.0 Client Credentials Grant 방식으로 `client_id`·`client_secret`을 토큰으로 교환하며, 발급된 토큰은 이후 모든 API의 `Authorization: Bearer` 헤더에 사용됩니다. 이 그룹의 엔드포인트만 `Authorization` 헤더 없이 호출하며, 응답은 BFF 공통 envelope이 아닌 OAuth 2.0 표준 형식을 따릅니다."
+    },
+    {
+      "name": "Market Data",
+      "description": "종목의 실시간성 시세 정보를 조회하는 그룹입니다. 매수/매도 호가, 현재가, 최근 체결 내역, 상·하한가, 캔들 차트(1분봉·일봉)를 제공합니다. 계좌 정보 없이 액세스 토큰만으로 호출할 수 있습니다. 호가·현재가·체결·상하한가는 `MARKET_DATA` Rate Limits Group 에 속하고, 캔들 차트는 호출 부하 특성이 달라 별도의 `MARKET_DATA_CHART` Rate Limits Group 으로 관리되므로, 두 그룹의 한도 응답 헤더를 각각 확인하는 것을 권장합니다.\n\n**이용 안내**  \n- 웹 소켓은 추후 지원 예정입니다"
+    },
+    {
+      "name": "Stock Info",
+      "description": "종목명·시장·통화·상장 상태·발행주식수 등 종목의 기본 참조 정보와 매수 유의사항을 제공하는 그룹입니다. 정리매매·단기과열·투자경고/위험·VI 발동·신주인수권 같은 매수 시 주의가 필요한 정보도 조회할 수 있습니다. 응답은 영업일 단위(또는 그 이상)로 갱신되는 데이터이므로 짧은 주기로 폴링하지 말고 화면·세션 진입 시점에 한 번 캐시해 사용하기를 권장합니다."
+    },
+    {
+      "name": "Market Info",
+      "description": "환율과 시장 운영 일정을 조회하는 그룹입니다. KRW↔USD 환율(1분 주기 갱신, 참고용 표시 환율)과 국내(KRX·NXT)·미국 시장의 장 운영 캘린더를 제공합니다. 장 캘린더는 영업일 여부와 데이마켓·프리·정규·애프터마켓 등 세션별 운영 시간을 포함하므로, 주문 가능 시간대 판단이나 휴장일 처리에 활용할 수 있습니다. 계좌와 무관한 정보로 토큰만으로 호출 가능합니다."
+    },
+    {
+      "name": "Account",
+      "description": "사용자 본인의 계좌 목록을 조회하는 그룹입니다. 해지·휴면 등을 제외한 정상 상태의 계좌만 반환하며, 계좌가 없으면 빈 배열을 응답합니다. 응답에 포함된 `accountSeq`는 보유 주식·주문·매수 가능 금액 등 계좌정보가  필요한 모든 API의 `X-Tossinvest-Account` 헤더 값으로 사용되므로, 다른 계좌 관련 API를 호출하기 전 가장 먼저 호출하는 진입점에 해당합니다."
+    },
+    {
+      "name": "Asset",
+      "description": "본인 계좌의 보유 자산 현황을 조회하는 그룹입니다. 종목별 보유 수량·매입가·평가금액·손익과 함께 계좌 전체의 합산 요약을 제공합니다. 국내(KR)·미국(US) 주식이 대상이며 해외 옵션·채권 등은 제외됩니다. 손익률은 원화(KRW) 환산 기준으로 계산됩니다. 호출 시 액세스 토큰과 `X-Tossinvest-Account` 헤더가 함께 필요합니다."
+    },
+    {
+      "name": "Order",
+      "description": "실제 매매 주문을 처리하는 그룹입니다. 지정가·시장가 주문 생성, 미체결 주문의 가격·수량 정정, 주문 취소를 지원합니다. 계좌에 직접 영향을 주는 API이므로 액세스 토큰과 `X-Tossinvest-Account` 헤더가 모두 필요합니다."
+    },
+    {
+      "name": "Order History",
+      "description": "제출한 주문의 처리 상태와 체결 내역을 조회하는 그룹입니다. `status` 파라미터로 라이프사이클 그룹(현재 진행 중 주문 `OPEN`, 종료된 주문 `CLOSED`)을 선택해 주문 목록을 조회하고, 개별 `orderId`로 모든 상태의 주문 상세를 조회할 수 있습니다. 상세 조회는 부분 체결 내역 등 주문 단위 정보를 포함합니다. 호출 시 `X-Tossinvest-Account` 헤더가 필요합니다."
+    },
+    {
+      "name": "Order Info",
+      "description": "주문을 내기 전 확인하는 거래 가능 정보를 제공하는 그룹입니다. 미수거래를 제외한 현금 기반 매수 가능 금액, 종목별 매도 가능 수량, 시장별 매매 수수료를 조회할 수 있습니다. 주문 화면에서 입력 가능한 최대 수량·금액을 안내하거나 예상 비용을 계산하는 용도로 활용하며, 정확한 주문 검증을 위해 주문 생성 직전에 호출하는 것을 권장합니다. 호출 시 `X-Tossinvest-Account` 헤더가 필요합니다."
+    }
+  ],
+  "paths": {
+    "/oauth2/token": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "OAuth2 액세스 토큰 발급",
+        "description": "OAuth 2.0 Client Credentials Grant 로 access token 을 발급합니다.\n\n- 요청 본문은 `application/x-www-form-urlencoded` 으로 전송합니다.\n- 발급된 token 은 다른 모든 API 의 `Authorization: Bearer {access_token}` 헤더에 사용합니다.\n- 응답 형식은 BFF 공통 envelope 이 아닌 OAuth2 표준 형식을 따릅니다.\n- refresh token 은 제공되지 않습니다. 만료 시 동일 엔드포인트로 재발급합니다.\n- client 당 유효한 access token 은 1 개입니다. 재발급 시 이전에 발급된 token 은 즉시 무효화됩니다.\n\n**Rate Limits Group**: `AUTH`\n",
+        "operationId": "issueOAuth2Token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/OAuth2TokenRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "토큰 발급 성공",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OAuth2TokenResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orderbook": {
+      "get": {
+        "tags": ["Market Data"],
+        "summary": "호가 조회",
+        "operationId": "getOrderbook",
+        "parameters": [{ "$ref": "#/components/parameters/SymbolQuery" }],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/OrderbookResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices": {
+      "get": {
+        "tags": ["Market Data"],
+        "summary": "현재가 조회",
+        "operationId": "getPrices",
+        "parameters": [
+          {
+            "name": "symbols",
+            "in": "query",
+            "required": true,
+            "description": "종목 심볼. 최대 200 개를 콤마(`,`)로 구분.",
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9.,\\-]+$" },
+            "example": "005930,000660"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/PriceResponse" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trades": {
+      "get": {
+        "tags": ["Market Data"],
+        "summary": "최근 체결 내역 조회",
+        "operationId": "getTrades",
+        "parameters": [
+          { "$ref": "#/components/parameters/SymbolQuery" },
+          { "name": "count", "in": "query", "required": false, "schema": { "type": "integer", "default": 50, "minimum": 1, "maximum": 50 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/Trade" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/price-limits": {
+      "get": {
+        "tags": ["Market Data"],
+        "summary": "상/하한가 조회",
+        "operationId": "getPriceLimit",
+        "parameters": [{ "$ref": "#/components/parameters/SymbolQuery" }],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/PriceLimitResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/candles": {
+      "get": {
+        "tags": ["Market Data"],
+        "summary": "캔들 차트 조회",
+        "operationId": "getCandles",
+        "parameters": [
+          { "$ref": "#/components/parameters/SymbolQuery" },
+          { "name": "interval", "in": "query", "required": true, "schema": { "type": "string", "enum": ["1m", "1d"] } },
+          { "name": "count", "in": "query", "required": false, "schema": { "type": "integer", "default": 100, "minimum": 1, "maximum": 200 } },
+          { "name": "before", "in": "query", "required": false, "schema": { "type": "string", "format": "date-time" } },
+          { "name": "adjusted", "in": "query", "required": false, "schema": { "type": "boolean", "default": true } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/CandlePageResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stocks": {
+      "get": {
+        "tags": ["Stock Info"],
+        "summary": "종목 기본 정보 조회",
+        "operationId": "getStocks",
+        "parameters": [
+          { "name": "symbols", "in": "query", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9.,\\-]+$" }, "example": "005930,AAPL" }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/StockInfo" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stocks/{symbol}/warnings": {
+      "get": {
+        "tags": ["Stock Info"],
+        "summary": "매수 유의사항 조회",
+        "operationId": "getStockWarnings",
+        "parameters": [{ "$ref": "#/components/parameters/Symbol" }],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/StockWarning" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exchange-rate": {
+      "get": {
+        "tags": ["Market Info"],
+        "summary": "환율 조회",
+        "operationId": "getExchangeRate",
+        "parameters": [
+          { "name": "dateTime", "in": "query", "required": false, "schema": { "type": "string", "format": "date-time" } },
+          { "name": "baseCurrency", "in": "query", "required": true, "schema": { "$ref": "#/components/schemas/Currency" } },
+          { "name": "quoteCurrency", "in": "query", "required": true, "schema": { "$ref": "#/components/schemas/Currency" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/ExchangeRateResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/market-calendar/KR": {
+      "get": {
+        "tags": ["Market Info"],
+        "summary": "국내 장 운영 정보 조회",
+        "operationId": "getKrMarketCalendar",
+        "parameters": [
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/KrMarketCalendarResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/market-calendar/US": {
+      "get": {
+        "tags": ["Market Info"],
+        "summary": "해외 장 운영 정보 조회",
+        "operationId": "getUsMarketCalendar",
+        "parameters": [
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/UsMarketCalendarResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "get": {
+        "tags": ["Account"],
+        "summary": "계좌 목록 조회",
+        "operationId": "getAccounts",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/Account" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/holdings": {
+      "get": {
+        "tags": ["Asset"],
+        "summary": "보유 주식 조회",
+        "operationId": "getHoldings",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "name": "symbol", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^[A-Za-z0-9.\\-]+$" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/HoldingsOverview" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "get": {
+        "tags": ["Order History"],
+        "summary": "주문 목록 조회",
+        "operationId": "getOrders",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "name": "status", "in": "query", "required": true, "schema": { "type": "string", "enum": ["OPEN", "CLOSED"] } },
+          { "name": "symbol", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+          { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/PaginatedOrderResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Order"],
+        "summary": "주문 생성",
+        "operationId": "createOrder",
+        "parameters": [{ "$ref": "#/components/parameters/AccountSeq" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OrderCreateRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/OrderResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{orderId}": {
+      "get": {
+        "tags": ["Order History"],
+        "summary": "주문 상세 조회",
+        "operationId": "getOrder",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "$ref": "#/components/parameters/OrderId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/Order" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{orderId}/modify": {
+      "post": {
+        "tags": ["Order"],
+        "summary": "주문 정정",
+        "operationId": "modifyOrder",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "$ref": "#/components/parameters/OrderId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OrderModifyRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/OrderOperationResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{orderId}/cancel": {
+      "post": {
+        "tags": ["Order"],
+        "summary": "주문 취소",
+        "operationId": "cancelOrder",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "$ref": "#/components/parameters/OrderId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/OrderOperationResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/buying-power": {
+      "get": {
+        "tags": ["Order Info"],
+        "summary": "매수 가능 금액 조회",
+        "operationId": "getBuyingPower",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "name": "currency", "in": "query", "required": true, "schema": { "$ref": "#/components/schemas/Currency" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/BuyingPowerResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sellable-quantity": {
+      "get": {
+        "tags": ["Order Info"],
+        "summary": "판매 가능 수량 조회",
+        "operationId": "getSellableQuantity",
+        "parameters": [
+          { "$ref": "#/components/parameters/AccountSeq" },
+          { "$ref": "#/components/parameters/SymbolQuery" }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "$ref": "#/components/schemas/SellableQuantityResponse" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/commissions": {
+      "get": {
+        "tags": ["Order Info"],
+        "summary": "매매 수수료 조회",
+        "operationId": "getCommissions",
+        "parameters": [{ "$ref": "#/components/parameters/AccountSeq" }],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "type": "object", "properties": { "result": { "type": "array", "items": { "$ref": "#/components/schemas/Commission" } } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "oauth2ClientCredentials": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "/oauth2/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "parameters": {
+      "Symbol": {
+        "name": "symbol",
+        "in": "path",
+        "required": true,
+        "description": "종목 심볼. KRX: 6자리 숫자 (예: 005930), US: 영문 티커 (예: AAPL).",
+        "schema": { "type": "string", "pattern": "^[A-Za-z0-9.\\-]+$" }
+      },
+      "SymbolQuery": {
+        "name": "symbol",
+        "in": "query",
+        "required": true,
+        "description": "종목 심볼. KRX: 6자리 숫자 (예: 005930), US: 영문 티커 (예: AAPL).",
+        "schema": { "type": "string", "pattern": "^[A-Za-z0-9.\\-]+$" }
+      },
+      "AccountSeq": {
+        "name": "X-Tossinvest-Account",
+        "in": "header",
+        "required": true,
+        "description": "계좌 식별 키. `GET /api/v1/accounts` 응답의 `accountSeq` 값.",
+        "schema": { "type": "integer", "format": "int64" }
+      },
+      "OrderId": {
+        "name": "orderId",
+        "in": "path",
+        "required": true,
+        "description": "주문 식별자.",
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "required": ["result"],
+        "properties": { "result": { "description": "성공 응답 페이로드" } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": { "error": { "$ref": "#/components/schemas/ApiError" } }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": ["requestId", "code", "message"],
+        "properties": {
+          "requestId": { "type": "string" },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "data": { "type": ["object", "null"], "additionalProperties": true }
+        }
+      },
+      "Currency": {
+        "type": "string",
+        "enum": ["KRW", "USD"]
+      },
+      "MarketCountry": {
+        "type": "string",
+        "enum": ["KR", "US"]
+      },
+      "OAuth2TokenRequest": {
+        "type": "object",
+        "required": ["grant_type", "client_id", "client_secret"],
+        "properties": {
+          "grant_type": { "type": "string", "enum": ["client_credentials"] },
+          "client_id": { "type": "string" },
+          "client_secret": { "type": "string", "format": "password" }
+        }
+      },
+      "OAuth2TokenResponse": {
+        "type": "object",
+        "required": ["access_token", "token_type", "expires_in"],
+        "properties": {
+          "access_token": { "type": "string" },
+          "token_type": { "type": "string", "enum": ["Bearer"] },
+          "expires_in": { "type": "integer", "format": "int64" }
+        }
+      },
+      "OrderbookEntry": {
+        "type": "object",
+        "required": ["price", "volume"],
+        "properties": {
+          "price": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "volume": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "OrderbookResponse": {
+        "type": "object",
+        "required": ["currency", "asks", "bids"],
+        "properties": {
+          "timestamp": { "type": ["string", "null"], "format": "date-time" },
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "asks": { "type": "array", "items": { "$ref": "#/components/schemas/OrderbookEntry" } },
+          "bids": { "type": "array", "items": { "$ref": "#/components/schemas/OrderbookEntry" } }
+        }
+      },
+      "PriceResponse": {
+        "type": "object",
+        "required": ["symbol", "lastPrice", "currency"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "timestamp": { "type": ["string", "null"], "format": "date-time" },
+          "lastPrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "currency": { "$ref": "#/components/schemas/Currency" }
+        }
+      },
+      "Trade": {
+        "type": "object",
+        "required": ["price", "volume", "timestamp", "currency"],
+        "properties": {
+          "price": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "volume": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "currency": { "$ref": "#/components/schemas/Currency" }
+        }
+      },
+      "PriceLimitResponse": {
+        "type": "object",
+        "required": ["timestamp", "currency"],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "upperLimitPrice": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "lowerLimitPrice": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "currency": { "$ref": "#/components/schemas/Currency" }
+        }
+      },
+      "CandlePageResponse": {
+        "type": "object",
+        "required": ["candles"],
+        "properties": {
+          "candles": { "type": "array", "items": { "$ref": "#/components/schemas/Candle" } },
+          "nextBefore": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "Candle": {
+        "type": "object",
+        "required": ["timestamp", "openPrice", "highPrice", "lowPrice", "closePrice", "volume", "currency"],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "openPrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "highPrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "lowPrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "closePrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "volume": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "currency": { "$ref": "#/components/schemas/Currency" }
+        }
+      },
+      "StockInfo": {
+        "type": "object",
+        "required": ["symbol", "name", "englishName", "isinCode", "market", "securityType", "isCommonShare", "status", "currency", "sharesOutstanding"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "name": { "type": "string" },
+          "englishName": { "type": "string" },
+          "isinCode": { "type": "string" },
+          "market": { "type": "string", "enum": ["KOSPI", "KOSDAQ", "NYSE", "NASDAQ", "AMEX", "KR_ETC", "US_ETC"] },
+          "securityType": { "type": "string", "enum": ["STOCK", "FOREIGN_STOCK", "DEPOSITARY_RECEIPT", "INFRASTRUCTURE_FUND", "REIT", "ETF", "FOREIGN_ETF", "ETN", "STOCK_WARRANTS"] },
+          "isCommonShare": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["SCHEDULED", "ACTIVE", "DELISTED"] },
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "listDate": { "type": ["string", "null"], "format": "date" },
+          "delistDate": { "type": ["string", "null"], "format": "date" },
+          "sharesOutstanding": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "leverageFactor": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "koreanMarketDetail": { "oneOf": [{ "$ref": "#/components/schemas/KrMarketDetail" }, { "type": "null" }] }
+        }
+      },
+      "KrMarketDetail": {
+        "type": "object",
+        "required": ["liquidationTrading", "nxtSupported", "krxTradingSuspended"],
+        "properties": {
+          "liquidationTrading": { "type": "boolean" },
+          "nxtSupported": { "type": "boolean" },
+          "krxTradingSuspended": { "type": "boolean" },
+          "nxtTradingSuspended": { "type": ["boolean", "null"] }
+        }
+      },
+      "StockWarning": {
+        "type": "object",
+        "required": ["warningType"],
+        "properties": {
+          "warningType": { "type": "string", "enum": ["LIQUIDATION_TRADING", "OVERHEATED", "INVESTMENT_WARNING", "INVESTMENT_RISK", "VI_STATIC_AND_DYNAMIC", "VI_STATIC", "VI_DYNAMIC", "STOCK_WARRANTS"] },
+          "exchange": { "type": ["string", "null"] },
+          "startDate": { "type": ["string", "null"], "format": "date" },
+          "endDate": { "type": ["string", "null"], "format": "date" }
+        }
+      },
+      "ExchangeRateResponse": {
+        "type": "object",
+        "required": ["baseCurrency", "quoteCurrency", "rate", "midRate", "basisPoint", "rateChangeType", "validFrom", "validUntil"],
+        "properties": {
+          "baseCurrency": { "$ref": "#/components/schemas/Currency" },
+          "quoteCurrency": { "$ref": "#/components/schemas/Currency" },
+          "rate": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "midRate": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "basisPoint": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "rateChangeType": { "type": "string", "enum": ["UP", "EQUAL", "DOWN"] },
+          "validFrom": { "type": "string", "format": "date-time" },
+          "validUntil": { "type": "string", "format": "date-time" }
+        }
+      },
+      "KrMarketCalendarResponse": {
+        "type": "object",
+        "required": ["today", "previousBusinessDay", "nextBusinessDay"],
+        "properties": {
+          "today": { "$ref": "#/components/schemas/KrMarketDay" },
+          "previousBusinessDay": { "$ref": "#/components/schemas/KrMarketDay" },
+          "nextBusinessDay": { "$ref": "#/components/schemas/KrMarketDay" }
+        }
+      },
+      "KrMarketDay": {
+        "type": "object",
+        "required": ["date"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "integrated": { "oneOf": [{ "$ref": "#/components/schemas/IntegratedHour" }, { "type": "null" }] }
+        }
+      },
+      "IntegratedHour": {
+        "type": "object",
+        "properties": {
+          "preMarket": { "oneOf": [{ "$ref": "#/components/schemas/PreMarketSession" }, { "type": "null" }] },
+          "regularMarket": { "oneOf": [{ "$ref": "#/components/schemas/RegularMarketSession" }, { "type": "null" }] },
+          "afterMarket": { "oneOf": [{ "$ref": "#/components/schemas/AfterMarketSession" }, { "type": "null" }] }
+        }
+      },
+      "PreMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "singlePriceAuctionStartTime": { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RegularMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "singlePriceAuctionStartTime": { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AfterMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "singlePriceAuctionEndTime": { "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UsMarketCalendarResponse": {
+        "type": "object",
+        "required": ["today", "previousBusinessDay", "nextBusinessDay"],
+        "properties": {
+          "today": { "$ref": "#/components/schemas/UsMarketDay" },
+          "previousBusinessDay": { "$ref": "#/components/schemas/UsMarketDay" },
+          "nextBusinessDay": { "$ref": "#/components/schemas/UsMarketDay" }
+        }
+      },
+      "UsMarketDay": {
+        "type": "object",
+        "required": ["date"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "dayMarket": { "oneOf": [{ "$ref": "#/components/schemas/UsDayMarketSession" }, { "type": "null" }] },
+          "preMarket": { "oneOf": [{ "$ref": "#/components/schemas/UsPreMarketSession" }, { "type": "null" }] },
+          "regularMarket": { "oneOf": [{ "$ref": "#/components/schemas/UsRegularMarketSession" }, { "type": "null" }] },
+          "afterMarket": { "oneOf": [{ "$ref": "#/components/schemas/UsAfterMarketSession" }, { "type": "null" }] }
+        }
+      },
+      "UsDayMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UsPreMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UsRegularMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UsAfterMarketSession": {
+        "type": "object",
+        "required": ["startTime", "endTime"],
+        "properties": {
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "required": ["accountNo", "accountSeq", "accountType"],
+        "properties": {
+          "accountNo": { "type": "string" },
+          "accountSeq": { "type": "integer", "format": "int64" },
+          "accountType": { "type": "string", "enum": ["BROKERAGE", "OVERSEAS_DERIVATIVES", "PENSION_SAVINGS", "RESHORING_INVESTMENT"] }
+        }
+      },
+      "HoldingsOverview": {
+        "type": "object",
+        "required": ["totalPurchaseAmount", "marketValue", "profitLoss", "dailyProfitLoss", "items"],
+        "properties": {
+          "totalPurchaseAmount": { "$ref": "#/components/schemas/Price" },
+          "marketValue": { "$ref": "#/components/schemas/OverviewMarketValue" },
+          "profitLoss": { "$ref": "#/components/schemas/OverviewProfitLoss" },
+          "dailyProfitLoss": { "$ref": "#/components/schemas/OverviewDailyProfitLoss" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/HoldingsItem" } }
+        }
+      },
+      "HoldingsItem": {
+        "type": "object",
+        "required": ["symbol", "name", "marketCountry", "currency", "quantity", "lastPrice", "averagePurchasePrice", "marketValue", "profitLoss", "dailyProfitLoss", "cost"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "name": { "type": "string" },
+          "marketCountry": { "$ref": "#/components/schemas/MarketCountry" },
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "quantity": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "lastPrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "averagePurchasePrice": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "marketValue": { "$ref": "#/components/schemas/MarketValue" },
+          "profitLoss": { "$ref": "#/components/schemas/ProfitLoss" },
+          "dailyProfitLoss": { "$ref": "#/components/schemas/DailyProfitLoss" },
+          "cost": { "$ref": "#/components/schemas/Cost" }
+        }
+      },
+      "Price": {
+        "type": "object",
+        "required": ["krw"],
+        "properties": {
+          "krw": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "usd": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "OverviewMarketValue": {
+        "type": "object",
+        "required": ["amount", "amountAfterCost"],
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/Price" },
+          "amountAfterCost": { "$ref": "#/components/schemas/Price" }
+        }
+      },
+      "OverviewProfitLoss": {
+        "type": "object",
+        "required": ["amount", "amountAfterCost", "rate", "rateAfterCost"],
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/Price" },
+          "amountAfterCost": { "$ref": "#/components/schemas/Price" },
+          "rate": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "rateAfterCost": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "OverviewDailyProfitLoss": {
+        "type": "object",
+        "required": ["amount", "rate"],
+        "properties": {
+          "amount": { "$ref": "#/components/schemas/Price" },
+          "rate": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "MarketValue": {
+        "type": "object",
+        "required": ["purchaseAmount", "amount", "amountAfterCost"],
+        "properties": {
+          "purchaseAmount": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "amount": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "amountAfterCost": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "ProfitLoss": {
+        "type": "object",
+        "required": ["amount", "amountAfterCost", "rate", "rateAfterCost"],
+        "properties": {
+          "amount": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "amountAfterCost": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "rate": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "rateAfterCost": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "DailyProfitLoss": {
+        "type": "object",
+        "required": ["amount", "rate"],
+        "properties": {
+          "amount": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "rate": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "Cost": {
+        "type": "object",
+        "required": ["commission"],
+        "properties": {
+          "commission": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "tax": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "OrderCreateRequest": {
+        "type": "object",
+        "required": ["symbol", "side", "orderType"],
+        "properties": {
+          "clientOrderId": { "type": "string", "maxLength": 36 },
+          "symbol": { "type": "string" },
+          "side": { "type": "string", "enum": ["BUY", "SELL"] },
+          "orderType": { "type": "string", "enum": ["LIMIT", "MARKET"] },
+          "timeInForce": { "type": "string", "enum": ["DAY", "CLS"], "default": "DAY" },
+          "quantity": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "price": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "orderAmount": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "confirmHighValueOrder": { "type": "boolean", "default": false }
+        }
+      },
+      "OrderModifyRequest": {
+        "type": "object",
+        "required": ["orderType"],
+        "properties": {
+          "orderType": { "type": "string", "enum": ["LIMIT", "MARKET"] },
+          "quantity": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "price": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "confirmHighValueOrder": { "type": "boolean", "default": false }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "required": ["orderId"],
+        "properties": {
+          "orderId": { "type": "string" },
+          "clientOrderId": { "type": ["string", "null"] }
+        }
+      },
+      "OrderOperationResponse": {
+        "type": "object",
+        "required": ["orderId"],
+        "properties": {
+          "orderId": { "type": "string" }
+        }
+      },
+      "PaginatedOrderResponse": {
+        "type": "object",
+        "required": ["orders", "nextCursor", "hasNext"],
+        "properties": {
+          "orders": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } },
+          "nextCursor": { "type": ["string", "null"] },
+          "hasNext": { "type": "boolean" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["orderId", "symbol", "side", "orderType", "timeInForce", "status", "quantity", "currency", "orderedAt", "execution"],
+        "properties": {
+          "orderId": { "type": "string" },
+          "symbol": { "type": "string" },
+          "side": { "type": "string", "enum": ["BUY", "SELL"] },
+          "orderType": { "type": "string", "enum": ["LIMIT", "MARKET"] },
+          "timeInForce": { "type": "string", "enum": ["DAY", "CLS", "OPG"] },
+          "status": { "$ref": "#/components/schemas/OrderStatus" },
+          "price": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "quantity": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "orderAmount": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "orderedAt": { "type": "string", "format": "date-time" },
+          "canceledAt": { "type": ["string", "null"], "format": "date-time" },
+          "execution": { "$ref": "#/components/schemas/OrderExecution" }
+        }
+      },
+      "OrderExecution": {
+        "type": "object",
+        "required": ["filledQuantity", "averageFilledPrice", "filledAmount", "commission", "tax", "filledAt", "settlementDate"],
+        "properties": {
+          "filledQuantity": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "averageFilledPrice": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "filledAmount": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "commission": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "tax": { "type": ["string", "null"], "format": "decimal", "maxLength": 30 },
+          "filledAt": { "type": ["string", "null"], "format": "date-time" },
+          "settlementDate": { "type": ["string", "null"], "format": "date" }
+        }
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": ["PENDING", "PENDING_CANCEL", "PENDING_REPLACE", "PARTIAL_FILLED", "FILLED", "CANCELED", "REJECTED", "CANCEL_REJECTED", "REPLACE_REJECTED", "REPLACED"]
+      },
+      "BuyingPowerResponse": {
+        "type": "object",
+        "required": ["currency", "cashBuyingPower"],
+        "properties": {
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "cashBuyingPower": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "SellableQuantityResponse": {
+        "type": "object",
+        "required": ["sellableQuantity"],
+        "properties": {
+          "sellableQuantity": { "type": "string", "format": "decimal", "maxLength": 30 }
+        }
+      },
+      "Commission": {
+        "type": "object",
+        "required": ["marketCountry", "commissionRate"],
+        "properties": {
+          "marketCountry": { "$ref": "#/components/schemas/MarketCountry" },
+          "commissionRate": { "type": "string", "format": "decimal", "maxLength": 30 },
+          "startDate": { "type": ["string", "null"], "format": "date" },
+          "endDate": { "type": ["string", "null"], "format": "date" }
+        }
+      }
+    }
+  }
+}
