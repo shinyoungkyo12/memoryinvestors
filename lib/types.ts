@@ -15,6 +15,5 @@ export interface QuoteSnapshot {
   price: number;
   prevClose: number;
   changePct: number;
-  /** "kis" 실시간 | "yahoo" 지연 시세 */
-  provider: "kis" | "yahoo";
+  provider: "yahoo";
 }

@@ -59,7 +59,6 @@ const VALID_VIEWS = new Set<View>([
 
 const SOURCE_LABEL: Record<Quote["source"], string> = {
   ws: "LIVE",
-  kis: "LIVE·KIS",
   rest: "SNAPSHOT",
   yahoo: "지연시세",
 };
@@ -321,10 +320,9 @@ function Dashboard() {
             )}
           </div>
           <p className="border-t border-[var(--border)] px-4 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
-            미국: Finnhub 실시간 체결 + Twelve Data 과거봉 · 한국: KIS 실시간
-            현재가(앱키 설정 시) 또는 Yahoo 지연 시세(15~20분) + Yahoo 과거봉.
-            이동평균선(5/10/20/60/120)은 확정 봉 기준입니다. 본 화면은 정보 제공
-            목적이며 투자 권유가 아닙니다.
+            미국: Finnhub 실시간 체결 + Twelve Data 과거봉 · 한국: Yahoo 지연
+            시세(15~20분) + Yahoo 과거봉. 이동평균선(5/10/20/60/120)은 확정 봉
+            기준입니다. 본 화면은 정보 제공 목적이며 투자 권유가 아닙니다.
           </p>
           <div className="px-2 pb-2">
             <InfoBox

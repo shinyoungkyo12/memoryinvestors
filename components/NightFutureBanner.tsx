@@ -39,7 +39,7 @@ export default function NightFutureBanner() {
   // 세션이 아니면 표시 안 함
   if (!data || !data.sessionOpen) return null;
 
-  // 세션이지만 데이터 못 가져온 경우: 간단한 안내만 (KIS 키/코드 이슈)
+  // 세션이지만 데이터 못 가져온 경우: 간단한 안내
   if (!data.available || data.price === null) {
     return (
       <div className="border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2">

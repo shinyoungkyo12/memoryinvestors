@@ -1,7 +1,7 @@
 /**
  * 종목 유니버스 정의
  * Phase 1: 미국 메모리 종목 (Finnhub WS + Twelve Data 백필)
- * Phase 2: 한국 종목 (KIS API 실시간 + Yahoo 폴백/과거봉)
+ * Phase 2: 한국 종목 (Yahoo Finance 지연 시세 + 과거봉)
  */
 
 export type Market = "US" | "KR";

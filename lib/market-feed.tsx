@@ -15,10 +15,10 @@ import type { QuoteSnapshot } from "@/lib/types";
 /**
  * 통합 시세 피드
  * - 미국: Finnhub WebSocket 체결 스트림 (+ REST /quote 폴백 60초)
- * - 한국: /api/kr-quotes 폴링 5초 (KIS 실시간 or Yahoo 지연 — 서버가 결정)
+ * - 한국: /api/kr-quotes 폴링 5초 (Yahoo Finance 지연 시세)
  *
  * 주의: Finnhub 키는 브라우저 WebSocket 특성상 클라이언트에 노출됩니다(NEXT_PUBLIC_).
- * 무료 전용 키를 사용하세요. KIS 키는 서버에만 존재합니다.
+ * 무료 전용 키를 사용하세요.
  */
 
 export interface Trade {
@@ -33,8 +33,8 @@ export interface Quote {
   price: number;
   prevClose: number;
   changePct: number;
-  /** ws=실시간 체결, rest=스냅샷, kis=KIS 실시간, yahoo=지연 시세 */
-  source: "ws" | "rest" | "kis" | "yahoo";
+  /** ws=실시간 체결, rest=스냅샷, yahoo=지연 시세 */
+  source: "ws" | "rest" | "yahoo";
   updatedAt: number;
 }
 
