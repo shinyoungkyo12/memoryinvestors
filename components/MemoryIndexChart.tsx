@@ -15,6 +15,7 @@ import type {
   IndexHistoryPoint,
   MemberPoint,
 } from "@/app/api/index-history/route";
+import { useMarketFeed } from "@/lib/market-feed";
 
 /**
  * 메모리 반도체 지수 — 일봉 차트
@@ -45,6 +46,7 @@ export default function MemoryIndexChart({
   const [data, setData] = useState<IndexHistoryResponse | null>(null);
   const [error, setError] = useState("");
   const [hover, setHover] = useState<IndexHistoryPoint | null>(null);
+  const { quotes } = useMarketFeed();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -276,18 +278,29 @@ export default function MemoryIndexChart({
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] xl:w-[320px]">
           <div className="border-b border-[var(--border)] px-4 py-2.5">
             <div className="font-mono text-xs font-bold text-[var(--text)]">
-              구성종목 종가 · 전일 대비
+              구성종목 현재가 · 전일 대비
             </div>
             <div className="font-mono text-[10px] text-[var(--muted)]">
-              {shownPoint
-                ? `${shownPoint.date} 기준${hover ? " (선택 시점)" : " (최신)"}`
-                : "차트를 터치·마우스 오버하면 해당 시점 표시"}
+              {hover
+                ? `${hover.date} 기준 (선택 시점)`
+                : shownPoint
+                  ? "실시간 시세"
+                  : "차트를 터치·마우스 오버하면 해당 시점 표시"}
             </div>
           </div>
           <ul className="p-2">
             {shownPoint && shownPoint.members.length > 0 ? (
               shownPoint.members.map((m) => {
-                const up = (m.changePct ?? 0) >= 0;
+                // hover 없을 때는 실시간 시세로 오버라이드
+                const liveQ = !hover ? quotes[m.ticker] : null;
+                const displayClose = liveQ ? liveQ.price : m.close;
+                const displayChangePct = liveQ ? liveQ.changePct : m.changePct;
+                const displayMember: MemberPoint = {
+                  ...m,
+                  close: displayClose,
+                  changePct: displayChangePct ?? null,
+                };
+                const up = (displayMember.changePct ?? 0) >= 0;
                 return (
                   <li key={m.ticker}>
                     <button
@@ -306,15 +319,15 @@ export default function MemoryIndexChart({
                       </span>
                       <span className="flex flex-col items-end">
                         <span className="font-mono text-sm tabular-nums text-[var(--text)]">
-                          {fmtClose(m)}
+                          {fmtClose(displayMember)}
                         </span>
-                        {m.changePct !== null && (
+                        {displayMember.changePct !== null && (
                           <span
                             className={`font-mono text-xs tabular-nums ${
                               up ? "text-[var(--up)]" : "text-[var(--down)]"
                             }`}
                           >
-                            {up ? "▲" : "▼"} {Math.abs(m.changePct).toFixed(2)}%
+                            {up ? "▲" : "▼"} {Math.abs(displayMember.changePct).toFixed(2)}%
                           </span>
                         )}
                       </span>
