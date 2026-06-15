@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import {
   KR_SYMBOLS,
   US_SYMBOLS,
   formatPrice,
+  getSymbol,
   type SymbolInfo,
 } from "@/lib/symbols";
 import { useMarketFeed } from "@/lib/market-feed";
@@ -14,6 +14,12 @@ interface Props {
   onSelect: (ticker: string) => void;
 }
 
+const GROUPS: { label: string; items: SymbolInfo[] }[] = [
+  { label: "한국 KRX", items: KR_SYMBOLS },
+  { label: "미국 US", items: US_SYMBOLS },
+];
+
+/** 데스크톱 — 시세 포함 세로 리스트 버튼 */
 function SymbolButton({
   s,
   active,
@@ -65,60 +71,108 @@ function SymbolButton({
   );
 }
 
-export default function Watchlist({ selected, onSelect }: Props) {
-  const groups: { label: string; items: SymbolInfo[] }[] = [
-    { label: "한국 KRX", items: KR_SYMBOLS },
-    { label: "미국 US", items: US_SYMBOLS },
-  ];
+/** 모바일 — 드롭다운 선택 + 선택 종목 시세 요약 */
+function MobileSelect({ selected, onSelect }: Props) {
+  const { quotes } = useMarketFeed();
+  const info = getSymbol(selected);
+  const q = quotes[selected];
+  const isUp = (q?.changePct ?? 0) >= 0;
 
   return (
+    <div className="flex flex-col gap-2">
+      <label className="relative block">
+        <select
+          aria-label="종목 선택"
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          className="w-full appearance-none rounded-md border border-[var(--border)] bg-[var(--panel2)] py-2.5 pl-3 pr-9 font-mono text-sm font-semibold text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        >
+          {GROUPS.map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.items.map((s) => (
+                <option key={s.ticker} value={s.ticker}>
+                  {s.nameKo} ({s.ticker})
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-3 flex items-center font-mono text-[var(--muted)]"
+        >
+          ▾
+        </span>
+      </label>
+
+      {/* 선택 종목 시세 요약 */}
+      {info && (
+        <div className="flex items-baseline justify-between rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+          <span className="font-mono text-[11px] text-[var(--muted)]">
+            {info.ticker} · {info.category}
+          </span>
+          <span className="flex items-baseline gap-2 font-mono tabular-nums">
+            <span className="text-base font-bold text-[var(--text)]">
+              {q ? formatPrice(q.price, info.currency) : "—"}
+            </span>
+            {q && (
+              <span
+                className={`text-xs font-semibold ${
+                  isUp ? "text-[var(--up)]" : "text-[var(--down)]"
+                }`}
+              >
+                {isUp ? "+" : ""}
+                {q.changePct.toFixed(2)}%
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Watchlist({ selected, onSelect }: Props) {
+  return (
     <div>
-      {/* 제목 — 모바일/데스크톱 모두 표시 (모바일은 스크롤·선택 안내 포함) */}
       <div className="mb-2 flex items-baseline justify-between gap-2 px-1 lg:border-b lg:border-[var(--border)] lg:px-2 lg:pb-2">
         <span className="font-mono text-xs font-bold tracking-wide text-[var(--text)]">
           종목 선택
         </span>
         <span className="font-mono text-[10px] text-[var(--muted)]">
-          <span className="lg:hidden">좌우로 스크롤 · 탭하면 차트 변경</span>
+          <span className="lg:hidden">선택 시 차트·상세 변경</span>
           <span className="hidden lg:inline">전일종가 대비 %</span>
         </span>
       </div>
+
+      {/* 모바일: 드롭다운 */}
+      <div className="lg:hidden">
+        <MobileSelect selected={selected} onSelect={onSelect} />
+      </div>
+
+      {/* 데스크톱: 세로 리스트 */}
       <nav
         aria-label="종목 선택"
-        className="flex flex-row gap-3 overflow-x-auto pb-1 lg:flex-col lg:gap-4 lg:overflow-visible lg:pb-0"
+        className="hidden lg:flex lg:flex-col lg:gap-4"
       >
-        {groups.map((g) => (
-          <div key={g.label} className="shrink-0 lg:shrink">
+        {GROUPS.map((g) => (
+          <div key={g.label}>
             <div className="mb-1 px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
               {g.label}
             </div>
-            <ul className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
+            <ul className="flex flex-col gap-0.5">
               {g.items.map((s) => (
-                <li
-                  key={s.ticker}
-                  className="flex w-60 shrink-0 items-center gap-1 lg:w-auto lg:shrink"
-                >
-                <div className="min-w-0 flex-1">
+                <li key={s.ticker}>
                   <SymbolButton
                     s={s}
                     active={s.ticker === selected}
                     onSelect={onSelect}
                   />
-                </div>
-                <Link
-                  href={`/stock/${s.ticker}`}
-                  title={`${s.nameKo} 상세 페이지`}
-                  aria-label={`${s.nameKo} 상세 페이지`}
-                  className="flex shrink-0 items-center gap-0.5 self-stretch rounded border border-[var(--border)] px-2.5 py-1 font-mono text-[11px] text-[var(--muted)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--panel2)] hover:text-[var(--accent)]"
-                >
-                  상세
-                  <span aria-hidden="true">›</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
     </div>
   );

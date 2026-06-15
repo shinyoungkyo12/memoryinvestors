@@ -23,7 +23,7 @@ export const SITE_TITLE =
   "MemoryInvestors — 메모리 반도체 현물가·지수·목표가 한눈에";
 
 export const SITE_DESCRIPTION =
-  "DRAM·HBM·NAND 현물가, 자체 메모리 반도체 지수, 삼성전자·SK하이닉스·마이크론 등 종목별 실시간 차트·목표가 컨센서스·재고(DIO)·점유율을 한 화면에서. 독일 GDR 해외 야간시세까지.";
+  "DRAM·HBM·NAND 현물가, 자체 메모리 반도체 지수, 삼성전자·SK하이닉스·마이크론 등 종목별 실시간 차트·목표가 컨센서스·재고(DIO)·점유율을 한 화면에서. 삼성·하이닉스 다음날 시초가 예측까지.";
 
 /** 검색 타깃 키워드 */
 export const SITE_KEYWORDS = [
@@ -36,6 +36,6 @@ export const SITE_KEYWORDS = [
   "마이크론 주가",
   "낸드 현물가",
   "DDR5 가격",
-  "독일 하이닉스",
+  "시초가 예측",
   "메모리 반도체 ETF",
 ];

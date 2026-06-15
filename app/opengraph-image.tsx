@@ -64,7 +64,7 @@ export default function OgImage() {
             gap: 12,
           }}
         >
-          {["삼성전자", "SK하이닉스", "마이크론", "독일 야간시세"].map((t) => (
+          {["삼성전자", "SK하이닉스", "마이크론", "시초가 예측"].map((t) => (
             <div
               key={t}
               style={{
