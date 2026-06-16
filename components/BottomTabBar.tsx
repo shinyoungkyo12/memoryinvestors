@@ -11,6 +11,7 @@ type View =
   | "spot"
   | "fundamentals"
   | "share"
+  | "compare"
   | "feedback";
 
 const TABS: { key: View; label: string; icon: string }[] = [
@@ -23,6 +24,11 @@ const TABS: { key: View; label: string; icon: string }[] = [
     icon: "M4 4h16v16H4zM8 8h8M8 12h8M8 16h5",
   },
   { key: "share", label: "점유율", icon: "M12 2a10 10 0 100 20V2zM12 12l8-4" },
+  {
+    key: "compare",
+    label: "비교",
+    icon: "M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h4M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M12 7v10",
+  },
   {
     key: "feedback",
     label: "피드백",
