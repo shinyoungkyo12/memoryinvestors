@@ -63,9 +63,10 @@ export interface HlPredictResponse {
 const CACHE_TTL = 60_000;
 const cache = new Map<string, { at: number; data: HlPredictResponse }>();
 
-/** Spot 토큰 이름(예: SAMSUNG) → "@N" 마켓 인덱스 반환.
- *  Hyperliquid spot API는 코인 이름이 아닌 "@N" 인덱스를 사용함. */
-async function resolveSpotCoin(tokenName: string): Promise<string | null> {
+/** Spot 토큰 이름(예: SAMSUNG) → ["@N" | null, 사용가능토큰목록] */
+async function resolveSpotCoinDebug(
+  tokenName: string,
+): Promise<[string | null, string[]]> {
   try {
     const res = await fetch(HL_INFO, {
       method: "POST",
@@ -73,18 +74,36 @@ async function resolveSpotCoin(tokenName: string): Promise<string | null> {
       body: JSON.stringify({ type: "spotMeta" }),
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) return [null, []];
     const meta = (await res.json()) as {
       tokens: { name: string; index: number }[];
       universe: { name: string; tokens: number[] }[];
     };
-    const token = meta.tokens.find((t) => t.name === tokenName);
-    if (!token) return null;
-    const mktIdx = meta.universe.findIndex((u) => u.tokens[0] === token.index);
-    if (mktIdx < 0) return null;
-    return `@${mktIdx}`;
+    const names = meta.tokens.map((t) => t.name);
+    const nameLower = tokenName.toLowerCase();
+
+    // 1순위: tokens 배열에서 이름 매칭 → universe에서 해당 token.index 찾기
+    const token = meta.tokens.find(
+      (t) => t.name.toLowerCase() === nameLower,
+    );
+    if (token !== undefined) {
+      const mktIdx = meta.universe.findIndex((u) =>
+        u.tokens.includes(token.index),
+      );
+      if (mktIdx >= 0) return [`@${mktIdx}`, names];
+    }
+
+    // 2순위: universe.name 에서 "SKHYNIX" 또는 "SKHYNIX/USDC" 형태로 검색
+    const mktIdxByName = meta.universe.findIndex(
+      (u) =>
+        u.name.toLowerCase() === nameLower ||
+        u.name.toLowerCase().startsWith(nameLower + "/"),
+    );
+    if (mktIdxByName >= 0) return [`@${mktIdxByName}`, names];
+
+    return [null, names];
   } catch {
-    return null;
+    return [null, []];
   }
 }
 
@@ -212,10 +231,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Spot 토큰 이름 → "@N" 인덱스 변환 (Hyperliquid spot API 필수)
-  const hlCoin = await resolveSpotCoin(tokenName);
+  const [hlCoin, spotMetaNames] = await resolveSpotCoinDebug(tokenName);
   if (!hlCoin) {
+    const hint = spotMetaNames.length
+      ? `(사용 가능 토큰: ${spotMetaNames.slice(0, 10).join(", ")}…)`
+      : "(spotMeta 조회 실패)";
     return fail(
-      `하이퍼리퀴드 spot 마켓을 찾을 수 없습니다 (토큰: ${tokenName}). 심볼을 확인하세요.`,
+      `하이퍼리퀴드 spot 마켓을 찾을 수 없습니다 (토큰: ${tokenName}) ${hint}`,
     );
   }
 
