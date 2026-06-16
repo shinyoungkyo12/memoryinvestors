@@ -63,8 +63,33 @@ export interface HlPredictResponse {
 const CACHE_TTL = 60_000;
 const cache = new Map<string, { at: number; data: HlPredictResponse }>();
 
-/** 하이퍼리퀴드 현재 mid 가격 */
-async function fetchHlMid(symbol: string): Promise<number | null> {
+/** Spot 토큰 이름(예: SAMSUNG) → "@N" 마켓 인덱스 반환.
+ *  Hyperliquid spot API는 코인 이름이 아닌 "@N" 인덱스를 사용함. */
+async function resolveSpotCoin(tokenName: string): Promise<string | null> {
+  try {
+    const res = await fetch(HL_INFO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "spotMeta" }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const meta = (await res.json()) as {
+      tokens: { name: string; index: number }[];
+      universe: { name: string; tokens: number[] }[];
+    };
+    const token = meta.tokens.find((t) => t.name === tokenName);
+    if (!token) return null;
+    const mktIdx = meta.universe.findIndex((u) => u.tokens[0] === token.index);
+    if (mktIdx < 0) return null;
+    return `@${mktIdx}`;
+  } catch {
+    return null;
+  }
+}
+
+/** 하이퍼리퀴드 현재 mid 가격 (coin = "@N" 형태) */
+async function fetchHlMid(coin: string): Promise<number | null> {
   try {
     const res = await fetch(HL_INFO, {
       method: "POST",
@@ -74,16 +99,16 @@ async function fetchHlMid(symbol: string): Promise<number | null> {
     });
     if (!res.ok) return null;
     const mids = (await res.json()) as Record<string, string>;
-    const v = Number(mids[symbol]);
+    const v = Number(mids[coin]);
     return Number.isFinite(v) && v > 0 ? v : null;
   } catch {
     return null;
   }
 }
 
-/** 하이퍼리퀴드 일봉 종가 시계열 (date → close) */
+/** 하이퍼리퀴드 일봉 종가 시계열 (coin = "@N" 형태) */
 async function fetchHlDailyCloses(
-  symbol: string,
+  coin: string,
   days: number,
 ): Promise<Map<string, number>> {
   const out = new Map<string, number>();
@@ -95,7 +120,7 @@ async function fetchHlDailyCloses(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "candleSnapshot",
-        req: { coin: symbol, interval: "1d", startTime: start, endTime: end },
+        req: { coin, interval: "1d", startTime: start, endTime: end },
       }),
       cache: "no-store",
     });
@@ -177,7 +202,7 @@ export async function GET(req: NextRequest) {
 
   if (!t) return fail("하이퍼리퀴드 예측은 삼성전자·SK하이닉스만 지원합니다.", 400);
 
-  const hlSymbol = process.env[t.envKey] ?? t.hlSymbol;
+  const tokenName = process.env[t.envKey] ?? t.hlSymbol;
 
   const hit = cache.get(ticker);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
@@ -186,10 +211,18 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Spot 토큰 이름 → "@N" 인덱스 변환 (Hyperliquid spot API 필수)
+  const hlCoin = await resolveSpotCoin(tokenName);
+  if (!hlCoin) {
+    return fail(
+      `하이퍼리퀴드 spot 마켓을 찾을 수 없습니다 (토큰: ${tokenName}). 심볼을 확인하세요.`,
+    );
+  }
+
   // 병렬 수집: 하이퍼리퀴드 현재가/일봉, KRX 일봉, DRAM 현물
   const [hlMid, hlCloses, krCandles, spot] = await Promise.all([
-    fetchHlMid(hlSymbol),
-    fetchHlDailyCloses(hlSymbol, 150),
+    fetchHlMid(hlCoin),
+    fetchHlDailyCloses(hlCoin, 150),
     fetchYahooCandles(t.yahoo, "1day"),
     fetchSpotDxi(),
   ]);
@@ -270,7 +303,7 @@ export async function GET(req: NextRequest) {
     ticker,
     nameKo: t.nameKo,
     available: true,
-    hlSymbol,
+    hlSymbol: tokenName,
     hlPrice: hlMid,
     lastClose: lastKr.close,
     predictedOpen,
