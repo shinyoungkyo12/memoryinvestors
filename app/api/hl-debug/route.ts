@@ -31,12 +31,14 @@ async function tryPost(label: string, body: unknown) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (k in json) targets[k] = (json as any)[k];
       }
+      // dex:xyz 요청은 91개 전체 키를 반환 (심볼명 파악 목적)
+      const isDexXyz = typeof body === "object" && body !== null && "dex" in (body as object);
       return {
         label,
         status,
         type: "object",
         totalKeys: keys.length,
-        sampleKeys: keys.slice(0, 20),
+        sampleKeys: isDexXyz ? keys : keys.slice(0, 20),
         targetKeys: targets,
       };
     }
