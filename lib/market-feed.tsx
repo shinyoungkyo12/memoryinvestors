@@ -214,6 +214,8 @@ export function MarketFeedProvider({ children }: { children: ReactNode }) {
       ws.onclose = () => {
         setConnected(false);
         if (disposed) return;
+        // 최대 5회 재시도 후 REST 폴백으로 전환 (콘솔 스팸 방지)
+        if (retryRef.current >= 5) return;
         const delay = Math.min(30_000, 1_000 * 2 ** retryRef.current);
         retryRef.current += 1;
         reconnectTimer = setTimeout(connect, delay);
