@@ -1,33 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchYahooCandles } from "@/lib/yahoo";
 import { fitAndPredict, type PredictSample } from "@/lib/predict";
+import {
+  HL_TARGETS,
+  resolveHlSymbol,
+  fetchHlMid,
+  fetchHlDailyCloses,
+  isKospiOpen,
+} from "@/lib/hyperliquid";
 
 /**
  * GET /api/hl-predict?ticker=005930|000660
  *
- * 삼성전자·SK하이닉스의 하이퍼리퀴드(Hyperliquid) 퍼페추얼 거래가 + 다음날 시초가 예측.
- * SAMSUNG / SKHYNIX 은 Hyperliquid perp 코인명으로 allMids/candleSnapshot에 직접 사용.
+ * 삼성전자·SK하이닉스의 하이퍼리퀴드 거래가 + 다음날 시초가 예측.
+ *
+ * 예측가는 "코스피 정규장 마감(15:30 KST) 이후"에만 산출한다(marketOpen=false).
+ * 장중에는 marketOpen=true 로 두고 예측을 비워 패널이 안내 문구를 띄운다.
  */
 
-const HL_INFO = "https://api.hyperliquid.xyz/info";
-
-const TARGET: Record<
-  string,
-  { yahoo: string; nameKo: string; hlSymbol: string; envKey: string }
-> = {
-  "005930": {
-    yahoo: "005930.KS",
-    nameKo: "삼성전자",
-    hlSymbol: "SAMSUNG",
-    envKey: "HL_SYMBOL_005930",
-  },
-  "000660": {
-    yahoo: "000660.KS",
-    nameKo: "SK하이닉스",
-    hlSymbol: "SKHYNIX",
-    envKey: "HL_SYMBOL_000660",
-  },
-};
+const TARGET = HL_TARGETS;
 
 export interface HlPredictResponse {
   ticker: string;
@@ -42,61 +33,13 @@ export interface HlPredictResponse {
   samples: number | null;
   corrHl: number | null;
   corrSpot: number | null;
+  /** KOSPI 정규장 진행 중 여부 (true면 예측 보류) */
+  marketOpen: boolean;
   error?: string;
 }
 
 const CACHE_TTL = 60_000;
 const cache = new Map<string, { at: number; data: HlPredictResponse }>();
-
-/** 하이퍼리퀴드 현재 mid 가격 (perp 코인명 직접 사용) */
-async function fetchHlMid(coin: string): Promise<number | null> {
-  try {
-    const res = await fetch(HL_INFO, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "allMids" }),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const mids = (await res.json()) as Record<string, string>;
-    const v = Number(mids[coin]);
-    return Number.isFinite(v) && v > 0 ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-/** 하이퍼리퀴드 일봉 종가 시계열 */
-async function fetchHlDailyCloses(
-  coin: string,
-  days: number,
-): Promise<Map<string, number>> {
-  const out = new Map<string, number>();
-  try {
-    const end = Date.now();
-    const start = end - days * 86_400_000;
-    const res = await fetch(HL_INFO, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "candleSnapshot",
-        req: { coin, interval: "1d", startTime: start, endTime: end },
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) return out;
-    const candles = (await res.json()) as { t: number; c: string }[];
-    if (!Array.isArray(candles)) return out;
-    for (const c of candles) {
-      const date = new Date(c.t).toISOString().slice(0, 10);
-      const close = Number(c.c);
-      if (Number.isFinite(close) && close > 0) out.set(date, close);
-    }
-  } catch {
-    /* 무시 */
-  }
-  return out;
-}
 
 /** DRAM 현물 DXI 종가 시계열 */
 async function fetchSpotDxi(): Promise<Map<string, number>> {
@@ -137,13 +80,20 @@ function nearestOnOrBefore(
 export async function GET(req: NextRequest) {
   const ticker = req.nextUrl.searchParams.get("ticker") ?? "";
   const t = TARGET[ticker];
+  const sym = resolveHlSymbol(ticker);
+  const marketOpen = isKospiOpen();
+
+  const base = {
+    ticker,
+    nameKo: t?.nameKo ?? "",
+    hlSymbol: sym?.display ?? null,
+    marketOpen,
+  };
 
   const fail = (msg: string, status = 200): NextResponse => {
     const body: HlPredictResponse = {
-      ticker,
-      nameKo: t?.nameKo ?? "",
+      ...base,
       available: false,
-      hlSymbol: null,
       hlPrice: null,
       lastClose: null,
       predictedOpen: null,
@@ -157,9 +107,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
   };
 
-  if (!t) return fail("하이퍼리퀴드 예측은 삼성전자·SK하이닉스만 지원합니다.", 400);
-
-  const hlSymbol = process.env[t.envKey] ?? t.hlSymbol;
+  if (!t || !sym) {
+    return fail("하이퍼리퀴드 예측은 삼성전자·SK하이닉스만 지원합니다.", 400);
+  }
 
   const hit = cache.get(ticker);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
@@ -168,13 +118,12 @@ export async function GET(req: NextRequest) {
 
   // 병렬 수집
   const [hlMid, hlCloses, krCandles, spot] = await Promise.all([
-    fetchHlMid(hlSymbol),
-    fetchHlDailyCloses(hlSymbol, 150),
+    fetchHlMid(sym),
+    fetchHlDailyCloses(sym, 150),
     fetchYahooCandles(t.yahoo, "1day"),
     fetchSpotDxi(),
   ]);
 
-  // KRX 데이터 없으면 전체 실패
   if (!krCandles || krCandles.length < 5) {
     return fail("KRX 시세 데이터가 부족합니다.");
   }
@@ -189,13 +138,11 @@ export async function GET(req: NextRequest) {
 
   const lastKr = kr[kr.length - 1];
 
-  // HL 캔들이 부족하면 현재가만 표시 (예측 없이 available=true)
-  if (hlCloses.size < 8) {
+  // 예측 없이 현재가만 채운 응답 (장중 보류 / 데이터 부족 공통)
+  const priceOnly = (msg: string): NextResponse => {
     const data: HlPredictResponse = {
-      ticker,
-      nameKo: t.nameKo,
+      ...base,
       available: true,
-      hlSymbol,
       hlPrice: hlMid,
       lastClose: lastKr.close,
       predictedOpen: null,
@@ -204,10 +151,20 @@ export async function GET(req: NextRequest) {
       samples: null,
       corrHl: null,
       corrSpot: null,
-      error: "하이퍼리퀴드 상장 초기 — 예측 데이터 축적 중입니다.",
+      error: msg,
     };
     cache.set(ticker, { at: Date.now(), data });
     return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+  };
+
+  // 코스피 장중에는 예측 보류 (마감 이후에만 동작)
+  if (marketOpen) {
+    return priceOnly("코스피 정규장 마감(15:30 KST) 이후 다음날 시초가 예측이 제공됩니다.");
+  }
+
+  // HL 캔들 부족 시 현재가만
+  if (hlCloses.size < 8) {
+    return priceOnly("하이퍼리퀴드 상장 초기 — 예측 데이터 축적 중입니다.");
   }
 
   const hlDates = [...hlCloses.keys()].sort();
@@ -250,35 +207,15 @@ export async function GET(req: NextRequest) {
       : 0;
 
   const pred = fitAndPredict(samples, { hlRet: latestHlRet, spotRet: latestSpotRet });
-
-  // 예측 실패해도 현재가는 표시
   if (!pred) {
-    const data: HlPredictResponse = {
-      ticker,
-      nameKo: t.nameKo,
-      available: true,
-      hlSymbol,
-      hlPrice: hlMid,
-      lastClose: lastKr.close,
-      predictedOpen: null,
-      predictedGapPct: null,
-      confidence: null,
-      samples: null,
-      corrHl: null,
-      corrSpot: null,
-      error: "예측에 필요한 표본이 부족합니다 (데이터 축적 중).",
-    };
-    cache.set(ticker, { at: Date.now(), data });
-    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+    return priceOnly("예측에 필요한 표본이 부족합니다 (데이터 축적 중).");
   }
 
   const predictedOpen = Math.round(lastKr.close * (1 + pred.predictedGap));
 
   const data: HlPredictResponse = {
-    ticker,
-    nameKo: t.nameKo,
+    ...base,
     available: true,
-    hlSymbol,
     hlPrice: hlMid,
     lastClose: lastKr.close,
     predictedOpen,

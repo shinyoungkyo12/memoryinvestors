@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from "react";
 import type { HlPredictResponse } from "@/app/api/hl-predict/route";
+import type { HlPriceResponse } from "@/app/api/hl-price/route";
 
 /**
  * 하이퍼리퀴드 거래가 + 다음날 시초가 예측 패널 (삼성전자·SK하이닉스).
- * - 하이퍼리퀴드 현재가(USD)
- * - 다음날 예측 시초가(KRW) + 갭(%)
- * - 신뢰도(%): 회귀 모델 인샘플 방향 적중률
- * - 현물/하이퍼리퀴드 상관계수 표기
- * 60초 갱신.
+ * - 현재가(USD): /api/hl-price 5초 폴링 (실시간)
+ * - 예측: /api/hl-predict 60초 폴링 — 코스피 장 마감(15:30 KST) 이후에만 산출
  */
 export default function HyperliquidPanel({ ticker }: { ticker: string }) {
   const [data, setData] = useState<HlPredictResponse | null>(null);
   const [error, setError] = useState("");
+  const [livePrice, setLivePrice] = useState<number | null>(null);
 
+  // 예측 + 메타 (60초)
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -22,6 +22,7 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
       if (reset) {
         setData(null);
         setError("");
+        setLivePrice(null);
       }
       try {
         const res = await fetch(`/api/hl-predict?ticker=${ticker}`);
@@ -41,8 +42,32 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
     };
   }, [ticker]);
 
+  // 실시간 현재가 (5초)
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/hl-price?ticker=${ticker}`);
+        const json = (await res.json()) as HlPriceResponse;
+        if (!cancelled && json.price != null) setLivePrice(json.price);
+      } catch {
+        /* 다음 틱에서 회복 */
+      }
+    };
+    tick();
+    timer = setInterval(tick, 5_000);
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [ticker]);
+
   const confidenceColor = (c: number) =>
     c >= 60 ? "var(--up)" : c >= 50 ? "var(--accent)" : "var(--down)";
+
+  const price = livePrice ?? data?.hlPrice ?? null;
+  const marketOpen = data?.marketOpen ?? false;
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)]">
@@ -50,8 +75,16 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
         <span className="font-mono text-sm font-bold text-[var(--text)]">
           하이퍼리퀴드 · 다음날 시초가 예측
         </span>
-        <span className="rounded bg-[var(--panel2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent)]">
-          Hyperliquid
+        <span className="flex items-center gap-1.5">
+          {livePrice != null && (
+            <span className="flex items-center gap-1 font-mono text-[10px] text-[var(--up)]">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--up)]" />
+              LIVE
+            </span>
+          )}
+          <span className="rounded bg-[var(--panel2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--accent)]">
+            Hyperliquid
+          </span>
         </span>
       </div>
 
@@ -65,6 +98,20 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4 p-4">
+          {/* 장중 안내 배너 */}
+          {marketOpen && (
+            <div className="flex items-start gap-2 rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-3 py-2">
+              <span className="text-sm">🕒</span>
+              <p className="font-mono text-[11px] leading-relaxed text-[var(--text)]">
+                코스피 정규장 진행 중입니다. 다음날 시초가 예측은{" "}
+                <span className="font-bold text-[var(--accent)]">
+                  장 마감(15:30 KST) 이후
+                </span>{" "}
+                에 산출됩니다. 현재가는 실시간으로 표시됩니다.
+              </p>
+            </div>
+          )}
+
           {/* 현재가 + 예측 시초가 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md border border-[var(--border)] bg-[var(--panel2)] px-3 py-2.5">
@@ -72,8 +119,8 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
                 하이퍼리퀴드 현재가
               </div>
               <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
-                {data.hlPrice != null
-                  ? `$${data.hlPrice.toLocaleString("en-US", {
+                {price != null
+                  ? `$${price.toLocaleString("en-US", {
                       maximumFractionDigits: 4,
                     })}`
                   : "—"}
@@ -106,7 +153,7 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
                 </>
               ) : (
                 <div className="mt-1 font-mono text-xs leading-relaxed text-[var(--muted)]">
-                  {data.error ?? "데이터 축적 중…"}
+                  {marketOpen ? "장 마감 후 제공" : (data.error ?? "데이터 축적 중…")}
                 </div>
               )}
             </div>
@@ -139,31 +186,35 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
           )}
 
           {/* 상관계수 + 표본 */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-[var(--muted)]">
-            <span>
-              현물↔HL 상관:{" "}
-              <span className="tabular-nums text-[var(--text)]">
-                {data.corrHl != null ? data.corrHl.toFixed(2) : "—"}
+          {data.predictedOpen != null && (
+            <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11px] text-[var(--muted)]">
+              <span>
+                현물↔HL 상관:{" "}
+                <span className="tabular-nums text-[var(--text)]">
+                  {data.corrHl != null ? data.corrHl.toFixed(2) : "—"}
+                </span>
               </span>
-            </span>
-            <span>
-              현물↔시초가 상관:{" "}
-              <span className="tabular-nums text-[var(--text)]">
-                {data.corrSpot != null ? data.corrSpot.toFixed(2) : "—"}
+              <span>
+                현물↔시초가 상관:{" "}
+                <span className="tabular-nums text-[var(--text)]">
+                  {data.corrSpot != null ? data.corrSpot.toFixed(2) : "—"}
+                </span>
               </span>
-            </span>
-            <span>
-              학습 표본:{" "}
-              <span className="tabular-nums text-[var(--text)]">
-                {data.samples ?? "—"}일
+              <span>
+                학습 표본:{" "}
+                <span className="tabular-nums text-[var(--text)]">
+                  {data.samples ?? "—"}일
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          )}
 
           <p className="border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--muted)]">
-            DRAM 현물(DXI)·하이퍼리퀴드 수익률로 다음날 KRX 시초가 갭을 다중
-            선형회귀해 예측한 값입니다. 신뢰도는 과거 표본의 방향(상승/하락) 적중률
-            이며, 실제 시초가와 오차가 있을 수 있습니다. 투자 참고용입니다.
+            현재가는 하이퍼리퀴드 실시간 시세입니다. 예측 시초가는 코스피 장
+            마감(15:30 KST) 이후, DRAM 현물(DXI)·하이퍼리퀴드 수익률로 다음날 KRX
+            시초가 갭을 다중 선형회귀해 산출하며, 신뢰도는 과거 표본의
+            방향(상승/하락) 적중률입니다. 실제 시초가와 오차가 있을 수 있는 투자
+            참고용 지표입니다.
           </p>
         </div>
       )}
