@@ -80,7 +80,7 @@ function TrendRow({
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label="근거 펼치기"
-            className="text-[var(--muted)] hover:text-[var(--text)]"
+            className="-m-1.5 rounded p-1.5 text-[var(--muted)] transition-colors hover:text-[var(--text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
             <svg
               width="16"

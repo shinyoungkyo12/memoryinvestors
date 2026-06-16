@@ -10,9 +10,14 @@ export interface ConsensusRow {
   ticker: string;
   name_ko: string | null;
   target_price: number | null;
+  target_high: number | null;
+  target_low: number | null;
+  target_mean: number | null;
   current_price: number | null;
+  analyst_count: number | null;
   opinion: string | null;
   upside_pct: number | null;
+  source: string | null;
   captured_at: string;
 }
 
@@ -40,7 +45,12 @@ export async function GET() {
     const res = await fetch(
       `${url}/rest/v1/consensus?select=*&order=upside_pct.desc`,
       {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          Range: "0-999",
+          "Range-Unit": "items",
+        },
         cache: "no-store",
       },
     );

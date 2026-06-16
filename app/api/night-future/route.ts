@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { fetchKisNightFuture, kisConfigured } from "@/lib/kis";
 
 /**
  * GET /api/night-future — 코스피200 야간선물(CME 연계) 현재가
  *
- * - 야간선물은 CME 연계 글로벌 시장(KST 18:00~익일 05:00)에만 체결
- * - 그 외 시간엔 sessionOpen=false 반환 → 클라이언트가 영역 숨김
- * - KIS 앱키 필요. 미설정/실패 시 available=false
- * - 10초 캐시
+ * Yahoo Finance KM=F (CME Mini KOSPI200 Futures).
+ * v7/quote → v8/chart, query1 → query2 순으로 재시도.
+ * 별도 API 키 불필요. 캐시 30초.
  */
 
 export interface NightFutureResponse {
   available: boolean;
-  /** 야간선물 세션 시간대인지 (KST 18:00~05:00) */
   sessionOpen: boolean;
   price: number | null;
   diff: number | null;
@@ -21,20 +18,117 @@ export interface NightFutureResponse {
   error?: string;
 }
 
-const CACHE_TTL = 10_000;
+const CACHE_TTL = 30_000;
 let cache: { at: number; data: NightFutureResponse } | null = null;
+
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 /** KST 기준 야간선물 세션(18:00~익일 05:00) 여부 */
 function isNightSession(): boolean {
   const kstHour = new Date(Date.now() + 9 * 3_600_000).getUTCHours();
-  // 18,19,...,23,0,1,2,3,4 → 세션. 5~17 → 닫힘
   return kstHour >= 18 || kstHour < 5;
+}
+
+interface QuoteResult {
+  price: number;
+  diff: number;
+  changePct: number;
+}
+
+/** Yahoo Finance v7/quote 엔드포인트 시도 */
+async function tryV7Quote(host: string): Promise<QuoteResult | null> {
+  try {
+    const res = await fetch(
+      `https://${host}/v7/finance/quote?symbols=KM%3DF&fields=regularMarketPrice,regularMarketPreviousClose,regularMarketChange,regularMarketChangePercent`,
+      {
+        headers: {
+          "User-Agent": UA,
+          Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+          Referer: "https://finance.yahoo.com/",
+        },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as {
+      quoteResponse?: {
+        result?: {
+          regularMarketPrice?: number;
+          regularMarketPreviousClose?: number;
+          regularMarketChange?: number;
+          regularMarketChangePercent?: number;
+        }[];
+      };
+    };
+    const q = j.quoteResponse?.result?.[0];
+    const price = q?.regularMarketPrice;
+    if (!price || price <= 0) return null;
+    const prevClose = q.regularMarketPreviousClose ?? price;
+    const diff = q.regularMarketChange ?? price - prevClose;
+    const changePct = q.regularMarketChangePercent ?? (diff / prevClose) * 100;
+    return { price, diff, changePct };
+  } catch {
+    return null;
+  }
+}
+
+/** Yahoo Finance v8/chart 엔드포인트 시도 (range=5d로 데이터 보장) */
+async function tryV8Chart(host: string): Promise<QuoteResult | null> {
+  try {
+    const res = await fetch(
+      `https://${host}/v8/finance/chart/KM%3DF?interval=1d&range=5d`,
+      {
+        headers: {
+          "User-Agent": UA,
+          Accept: "application/json",
+          Referer: "https://finance.yahoo.com/",
+        },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as {
+      chart?: {
+        result?: {
+          meta?: {
+            regularMarketPrice?: number;
+            regularMarketPreviousClose?: number;
+            chartPreviousClose?: number;
+          };
+        }[];
+      };
+    };
+    const meta = j.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice;
+    const prevClose =
+      meta?.regularMarketPreviousClose ?? meta?.chartPreviousClose;
+    if (!price || price <= 0 || !prevClose) return null;
+    const diff = price - prevClose;
+    return { price, diff, changePct: (diff / prevClose) * 100 };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchKMF(): Promise<QuoteResult | null> {
+  const hosts = ["query1.finance.yahoo.com", "query2.finance.yahoo.com"];
+  // v7/quote 우선 (futures에 더 안정적), 실패 시 v8/chart 폴백
+  for (const host of hosts) {
+    const r = await tryV7Quote(host);
+    if (r) return r;
+  }
+  for (const host of hosts) {
+    const r = await tryV8Chart(host);
+    if (r) return r;
+  }
+  return null;
 }
 
 export async function GET() {
   const sessionOpen = isNightSession();
 
-  // 세션 시간이 아니면 KIS 호출 자체를 생략 (불필요한 API 소모 방지)
   if (!sessionOpen) {
     return NextResponse.json(
       {
@@ -55,30 +149,16 @@ export async function GET() {
     });
   }
 
-  if (!kisConfigured()) {
-    return NextResponse.json(
-      {
-        available: false,
-        sessionOpen: true,
-        price: null,
-        diff: null,
-        changePct: null,
-        code: null,
-        error: "KIS 앱키 미설정",
-      } satisfies NightFutureResponse,
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  }
+  const quote = await fetchKMF();
 
-  const fut = await fetchKisNightFuture();
-  const data: NightFutureResponse = fut
+  const data: NightFutureResponse = quote
     ? {
         available: true,
         sessionOpen: true,
-        price: fut.price,
-        diff: fut.diff,
-        changePct: fut.changePct,
-        code: fut.code,
+        price: quote.price,
+        diff: quote.diff,
+        changePct: quote.changePct,
+        code: "KM=F",
       }
     : {
         available: false,
@@ -87,9 +167,9 @@ export async function GET() {
         diff: null,
         changePct: null,
         code: null,
-        error: "야간선물 시세 조회 실패 (종목코드 확인 필요)",
+        error: "CME 선물 시세 조회 실패 (Yahoo Finance)",
       };
 
-  if (fut) cache = { at: Date.now(), data };
+  if (data.available) cache = { at: Date.now(), data };
   return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
 }

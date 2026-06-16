@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import {
   SITE_URL,
@@ -65,7 +66,10 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

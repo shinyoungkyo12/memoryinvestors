@@ -39,7 +39,7 @@ export default function NightFutureBanner() {
   // 세션이 아니면 표시 안 함
   if (!data || !data.sessionOpen) return null;
 
-  // 세션이지만 데이터 못 가져온 경우: 간단한 안내만 (KIS 키/코드 이슈)
+  // 세션이지만 데이터 못 가져온 경우: 간단한 안내
   if (!data.available || data.price === null) {
     return (
       <div className="border-b border-[var(--border)] bg-[var(--panel)] px-4 py-2">
@@ -65,7 +65,7 @@ export default function NightFutureBanner() {
           야간선물
         </span>
         <span className="font-mono text-xs text-[var(--muted)]">
-          코스피200 (CME 연계)
+          코스피200 선물 · KM=F (CME)
         </span>
         <span className="font-mono text-base font-bold tabular-nums text-[var(--text)]">
           {data.price.toLocaleString("ko-KR", {
@@ -83,7 +83,7 @@ export default function NightFutureBanner() {
           {data.changePct?.toFixed(2)}%)
         </span>
         <span className="ml-auto font-mono text-[10px] text-[var(--muted)]">
-          장 마감 후 18:00~익일 05:00 · 30초 갱신
+          KST 18:00~익일 05:00 · 30초 갱신
         </span>
       </div>
     </div>

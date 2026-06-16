@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import historyJson from "@/data/spot-history.json";
 
 /**
  * GET /api/spot
  *
  * Supabase dram_spot 테이블에서 전체 시계열을 읽어 품목별로 그룹화해 반환.
  * 10분 인메모리 캐시 (현물가는 하루 수회만 갱신됨).
+ * 정적 spot-history.json 제거 — Supabase 스크랩 데이터만 사용.
+ * Supabase max_rows(기본 1,000) 한도를 페이지네이션으로 우회.
  */
 
 interface SpotRow {
@@ -23,6 +24,33 @@ export interface SpotSeries {
 
 const CACHE_TTL = 600_000;
 let cache: { at: number; data: SpotSeries[] } | null = null;
+
+/** Supabase max_rows(기본 1,000)를 1,000행씩 페이지네이션으로 전량 수집 */
+async function fetchAllSpotRows(
+  supabaseUrl: string,
+  key: string,
+): Promise<SpotRow[]> {
+  const PAGE = 1000;
+  const all: SpotRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/dram_spot?select=captured_date,item,price,change_pct&order=captured_date.asc&limit=${PAGE}&offset=${offset}`,
+      {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) throw new Error(`Supabase 조회 실패: HTTP ${res.status}`);
+    const rows = (await res.json()) as SpotRow[];
+    all.push(...rows);
+    if (rows.length < PAGE) break; // 마지막 페이지
+    offset += PAGE;
+  }
+
+  return all;
+}
 
 export async function GET() {
   if (cache && Date.now() - cache.at < CACHE_TTL) {
@@ -46,23 +74,10 @@ export async function GET() {
 
   let rows: SpotRow[];
   try {
-    const res = await fetch(
-      `${url}/rest/v1/dram_spot?select=captured_date,item,price,change_pct&order=captured_date.asc&limit=20000`,
-      {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        cache: "no-store",
-      },
-    );
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Supabase 조회 실패: HTTP ${res.status}` },
-        { status: 502 },
-      );
-    }
-    rows = (await res.json()) as SpotRow[];
-  } catch {
+    rows = await fetchAllSpotRows(url, key);
+  } catch (e) {
     return NextResponse.json(
-      { error: "Supabase 요청 중 네트워크 오류가 발생했습니다." },
+      { error: e instanceof Error ? e.message : "데이터 수집 중 오류" },
       { status: 502 },
     );
   }
@@ -77,14 +92,6 @@ export async function GET() {
       price: Number(r.price),
       changePct: r.change_pct === null ? null : Number(r.change_pct),
     });
-  }
-
-  // 월별 고정거래가 시드(과거 보도치) 병합 — 일별 현물가와 별도 품목으로 표시
-  for (const h of historyJson.items) {
-    const pts = [...h.points]
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((p) => ({ date: p.date, price: p.price, changePct: null }));
-    if (pts.length > 0) byItem.set(h.item, pts);
   }
 
   const series: SpotSeries[] = [...byItem.entries()]

@@ -71,6 +71,8 @@ export default function CandleChart({ ticker, interval }: Props) {
   const status: "loading" | "ready" | "error" =
     loadResult?.key === loadKey ? loadResult.status : "loading";
   const errorMsg = loadResult?.key === loadKey ? (loadResult.msg ?? "") : "";
+  /** 재시도 트리거 — 값이 바뀌면 캔들 로드 effect 재실행 */
+  const [reloadKey, setReloadKey] = useState(0);
 
   /** 차트 생성 (1회) */
   useEffect(() => {
@@ -211,7 +213,7 @@ export default function CandleChart({ ticker, interval }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [ticker, interval]);
+  }, [ticker, interval, reloadKey]);
 
   /** 공통: 신규 가격 1건을 현재 봉에 반영 */
   function applyTick(price: number, volume: number, timeMs: number) {
@@ -314,11 +316,17 @@ export default function CandleChart({ ticker, interval }: Props) {
         </div>
       )}
       {status === "error" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm">
           <span className="text-[var(--muted)]">{errorMsg}</span>
-          <span className="text-xs text-[var(--muted)]">
-            잠시 후 다른 인터벌을 눌러 다시 시도해 보세요.
-          </span>
+          <button
+            onClick={() => {
+              setLoadResult(null); // status → loading
+              setReloadKey((k) => k + 1);
+            }}
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 font-mono text-xs text-[var(--text)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+          >
+            ⟲ 다시 시도
+          </button>
         </div>
       )}
     </div>

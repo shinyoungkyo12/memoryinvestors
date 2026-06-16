@@ -22,28 +22,48 @@ import InfoBox from "@/components/InfoBox";
 
 const LINE_COLOR = "#d8a24a";
 
-/** 변화율 비교 구간: 목표 과거일 ± 허용오차(일) */
+/** 변화율 비교 구간: 목표 과거일(일수) */
 const HORIZONS = [
-  { label: "1주 전 대비", days: 7, tol: 4 },
-  { label: "1개월 전 대비", days: 30, tol: 8 },
-  { label: "1분기 전 대비", days: 91, tol: 15 },
-  { label: "1년 전 대비", days: 365, tol: 31 },
+  { label: "1주 전 대비", days: 7 },
+  { label: "1개월 전 대비", days: 30 },
+  { label: "1분기 전 대비", days: 91 },
+  { label: "1년 전 대비", days: 365 },
 ] as const;
 
 const dayMs = 86_400_000;
 
+/**
+ * targetDate에 가장 가까운 데이터 포인트를 반환.
+ * 1단계: target 이전(또는 당일) 포인트 우선 탐색.
+ * 2단계: 없으면 target 이후 14일 이내 포인트 허용
+ *        (백필 시작일이 1년 전 목표일보다 며칠 늦는 경계 케이스 대응).
+ * latest와 동일 날짜 포인트는 항상 제외.
+ */
 function findNearest(
   points: SpotSeries["points"],
   targetDate: string,
-  tolDays: number,
+  latestDate: string,
 ) {
   const target = Date.parse(targetDate);
+
+  // 1단계: target 이전 포인트 (이상적)
   let best: { price: number; date: string; gap: number } | null = null;
   for (const p of points) {
-    const gap = Math.abs(Date.parse(p.date) - target) / dayMs;
-    if (gap <= tolDays && (!best || gap < best.gap)) {
-      best = { price: p.price, date: p.date, gap };
-    }
+    if (p.date === latestDate) continue;
+    const d = Date.parse(p.date);
+    if (d > target) continue;
+    const gap = (target - d) / dayMs;
+    if (!best || gap < best.gap) best = { price: p.price, date: p.date, gap };
+  }
+  if (best) return best;
+
+  // 2단계: target 이후 14일 이내 포인트 허용
+  for (const p of points) {
+    if (p.date === latestDate) continue;
+    const d = Date.parse(p.date);
+    if (d > target + 14 * dayMs) continue;
+    const gap = (d - target) / dayMs;
+    if (!best || gap < best.gap) best = { price: p.price, date: p.date, gap };
   }
   return best;
 }
@@ -58,9 +78,18 @@ function ChangeCards({ series }: { series: SpotSeries }) {
         const targetDate = new Date(latestT - h.days * dayMs)
           .toISOString()
           .slice(0, 10);
-        const base = findNearest(series.points, targetDate, h.tol);
+        const base = findNearest(series.points, targetDate, latest.date);
         const pct = base ? ((latest.price - base.price) / base.price) * 100 : null;
         const up = (pct ?? 0) >= 0;
+        // 실제 갭이 목표와 다를 때 "(실제 N일 전)" 보조 표기
+        const actualDays = base
+          ? Math.round((latestT - Date.parse(base.date)) / dayMs)
+          : null;
+        const gapNote =
+          actualDays !== null && Math.abs(actualDays - h.days) > 5
+            ? `실제 ${actualDays}일 전`
+            : null;
+
         return (
           <div
             key={h.label}
@@ -68,6 +97,9 @@ function ChangeCards({ series }: { series: SpotSeries }) {
           >
             <div className="font-mono text-[11px] text-[var(--muted)]">
               {h.label}
+              {gapNote && (
+                <span className="ml-1 text-[9px] opacity-70">({gapNote})</span>
+              )}
             </div>
             {pct !== null && base ? (
               <>
@@ -79,16 +111,17 @@ function ChangeCards({ series }: { series: SpotSeries }) {
                   {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%
                 </div>
                 <div className="font-mono text-[11px] tabular-nums text-[var(--muted)]">
-                  {base.price.toFixed(3)} → {latest.price.toFixed(3)} ({base.date})
+                  {base.price.toFixed(3)} → {latest.price.toFixed(3)}{" "}
+                  <span className="opacity-70">({base.date})</span>
                 </div>
               </>
             ) : (
               <>
                 <div className="font-mono text-xl font-bold text-[var(--muted)]">
-                  부재
+                  수집 중
                 </div>
                 <div className="font-mono text-[11px] text-[var(--muted)]">
-                  ({targetDate} 기준 데이터 없음)
+                  데이터 쌓이는 중
                 </div>
               </>
             )}
