@@ -17,11 +17,23 @@ import { fitAndPredict, type PredictSample } from "@/lib/predict";
 
 const HL_INFO = "https://api.hyperliquid.xyz/info";
 
-const TARGET: Record<string, { yahoo: string; nameKo: string; envKey: string }> =
-  {
-    "005930": { yahoo: "005930.KS", nameKo: "삼성전자", envKey: "HL_SYMBOL_005930" },
-    "000660": { yahoo: "000660.KS", nameKo: "SK하이닉스", envKey: "HL_SYMBOL_000660" },
-  };
+const TARGET: Record<
+  string,
+  { yahoo: string; nameKo: string; hlSymbol: string; envKey: string }
+> = {
+  "005930": {
+    yahoo: "005930.KS",
+    nameKo: "삼성전자",
+    hlSymbol: "SAMSUNG",
+    envKey: "HL_SYMBOL_005930",
+  },
+  "000660": {
+    yahoo: "000660.KS",
+    nameKo: "SK하이닉스",
+    hlSymbol: "SKHYNIX",
+    envKey: "HL_SYMBOL_000660",
+  },
+};
 
 export interface HlPredictResponse {
   ticker: string;
@@ -165,12 +177,7 @@ export async function GET(req: NextRequest) {
 
   if (!t) return fail("하이퍼리퀴드 예측은 삼성전자·SK하이닉스만 지원합니다.", 400);
 
-  const hlSymbol = process.env[t.envKey];
-  if (!hlSymbol) {
-    return fail(
-      `하이퍼리퀴드 심볼 미설정 — 환경변수 ${t.envKey} 를 설정하세요.`,
-    );
-  }
+  const hlSymbol = process.env[t.envKey] ?? t.hlSymbol;
 
   const hit = cache.get(ticker);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
