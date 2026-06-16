@@ -86,21 +86,27 @@ export default function HyperliquidPanel({ ticker }: { ticker: string }) {
               <div className="font-mono text-[10px] text-[var(--muted)]">
                 예측 다음날 시초가
               </div>
-              <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
-                {data.predictedOpen != null
-                  ? `₩${data.predictedOpen.toLocaleString("ko-KR")}`
-                  : "—"}
-              </div>
-              {data.predictedGapPct != null && (
-                <div
-                  className={`font-mono text-[11px] font-semibold tabular-nums ${
-                    data.predictedGapPct >= 0
-                      ? "text-[var(--up)]"
-                      : "text-[var(--down)]"
-                  }`}
-                >
-                  {data.predictedGapPct >= 0 ? "▲" : "▼"}{" "}
-                  {Math.abs(data.predictedGapPct).toFixed(2)}% (종가 대비)
+              {data.predictedOpen != null ? (
+                <>
+                  <div className="font-mono text-lg font-bold tabular-nums text-[var(--text)]">
+                    ₩{data.predictedOpen.toLocaleString("ko-KR")}
+                  </div>
+                  {data.predictedGapPct != null && (
+                    <div
+                      className={`font-mono text-[11px] font-semibold tabular-nums ${
+                        data.predictedGapPct >= 0
+                          ? "text-[var(--up)]"
+                          : "text-[var(--down)]"
+                      }`}
+                    >
+                      {data.predictedGapPct >= 0 ? "▲" : "▼"}{" "}
+                      {Math.abs(data.predictedGapPct).toFixed(2)}% (종가 대비)
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="mt-1 font-mono text-xs leading-relaxed text-[var(--muted)]">
+                  {data.error ?? "데이터 축적 중…"}
                 </div>
               )}
             </div>

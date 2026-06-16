@@ -5,14 +5,8 @@ import { fitAndPredict, type PredictSample } from "@/lib/predict";
 /**
  * GET /api/hl-predict?ticker=005930|000660
  *
- * 삼성전자·SK하이닉스의 하이퍼리퀴드(Hyperliquid) 거래가 + 다음날 시초가 예측.
- *
- * 모델: DRAM 현물(DXI) 수익률·하이퍼리퀴드 수익률 → 다음날 KRX 시초가 갭(다중 선형회귀).
- *       인샘플 방향 적중률을 신뢰도(%)로 표기. 참고용(투자권유 아님).
- *
- * 하이퍼리퀴드 심볼은 환경변수로 주입:
- *   HL_SYMBOL_005930 (삼성전자), HL_SYMBOL_000660 (SK하이닉스)
- * 미설정 시 available=false (심볼 미설정 안내).
+ * 삼성전자·SK하이닉스의 하이퍼리퀴드(Hyperliquid) 퍼페추얼 거래가 + 다음날 시초가 예측.
+ * SAMSUNG / SKHYNIX 은 Hyperliquid perp 코인명으로 allMids/candleSnapshot에 직접 사용.
  */
 
 const HL_INFO = "https://api.hyperliquid.xyz/info";
@@ -39,23 +33,14 @@ export interface HlPredictResponse {
   ticker: string;
   nameKo: string;
   available: boolean;
-  /** 하이퍼리퀴드 심볼(coin) */
   hlSymbol: string | null;
-  /** 하이퍼리퀴드 현재가 (USD) */
   hlPrice: number | null;
-  /** KRX 최근 종가 (KRW) */
   lastClose: number | null;
-  /** 예측 다음날 시초가 (KRW) */
   predictedOpen: number | null;
-  /** 예측 시초가 갭(%) */
   predictedGapPct: number | null;
-  /** 방향 적중률 신뢰도(%) */
   confidence: number | null;
-  /** 학습 표본 수 */
   samples: number | null;
-  /** 하이퍼리퀴드 수익률 ↔ 시초가 갭 상관계수 */
   corrHl: number | null;
-  /** 현물 수익률 ↔ 시초가 갭 상관계수 */
   corrSpot: number | null;
   error?: string;
 }
@@ -63,51 +48,7 @@ export interface HlPredictResponse {
 const CACHE_TTL = 60_000;
 const cache = new Map<string, { at: number; data: HlPredictResponse }>();
 
-/** Spot 토큰 이름(예: SAMSUNG) → ["@N" | null, 사용가능토큰목록] */
-async function resolveSpotCoinDebug(
-  tokenName: string,
-): Promise<[string | null, string[]]> {
-  try {
-    const res = await fetch(HL_INFO, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "spotMeta" }),
-      cache: "no-store",
-    });
-    if (!res.ok) return [null, []];
-    const meta = (await res.json()) as {
-      tokens: { name: string; index: number }[];
-      universe: { name: string; tokens: number[] }[];
-    };
-    const names = meta.tokens.map((t) => t.name);
-    const nameLower = tokenName.toLowerCase();
-
-    // 1순위: tokens 배열에서 이름 매칭 → universe에서 해당 token.index 찾기
-    const token = meta.tokens.find(
-      (t) => t.name.toLowerCase() === nameLower,
-    );
-    if (token !== undefined) {
-      const mktIdx = meta.universe.findIndex((u) =>
-        u.tokens.includes(token.index),
-      );
-      if (mktIdx >= 0) return [`@${mktIdx}`, names];
-    }
-
-    // 2순위: universe.name 에서 "SKHYNIX" 또는 "SKHYNIX/USDC" 형태로 검색
-    const mktIdxByName = meta.universe.findIndex(
-      (u) =>
-        u.name.toLowerCase() === nameLower ||
-        u.name.toLowerCase().startsWith(nameLower + "/"),
-    );
-    if (mktIdxByName >= 0) return [`@${mktIdxByName}`, names];
-
-    return [null, names];
-  } catch {
-    return [null, []];
-  }
-}
-
-/** 하이퍼리퀴드 현재 mid 가격 (coin = "@N" 형태) */
+/** 하이퍼리퀴드 현재 mid 가격 (perp 코인명 직접 사용) */
 async function fetchHlMid(coin: string): Promise<number | null> {
   try {
     const res = await fetch(HL_INFO, {
@@ -125,7 +66,7 @@ async function fetchHlMid(coin: string): Promise<number | null> {
   }
 }
 
-/** 하이퍼리퀴드 일봉 종가 시계열 (coin = "@N" 형태) */
+/** 하이퍼리퀴드 일봉 종가 시계열 */
 async function fetchHlDailyCloses(
   coin: string,
   days: number,
@@ -145,6 +86,7 @@ async function fetchHlDailyCloses(
     });
     if (!res.ok) return out;
     const candles = (await res.json()) as { t: number; c: string }[];
+    if (!Array.isArray(candles)) return out;
     for (const c of candles) {
       const date = new Date(c.t).toISOString().slice(0, 10);
       const close = Number(c.c);
@@ -156,7 +98,7 @@ async function fetchHlDailyCloses(
   return out;
 }
 
-/** DRAM 현물 DXI 종가 시계열 (date → price) */
+/** DRAM 현물 DXI 종가 시계열 */
 async function fetchSpotDxi(): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   const url = process.env.SUPABASE_URL;
@@ -179,7 +121,6 @@ async function fetchSpotDxi(): Promise<Map<string, number>> {
   return out;
 }
 
-/** 정렬된 날짜 배열에서 target 이하(on-or-before) 가장 가까운 값 */
 function nearestOnOrBefore(
   sortedDates: string[],
   map: Map<string, number>,
@@ -213,54 +154,31 @@ export async function GET(req: NextRequest) {
       corrSpot: null,
       error: msg,
     };
-    return NextResponse.json(body, {
-      status,
-      headers: { "Cache-Control": "no-store" },
-    });
+    return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
   };
 
   if (!t) return fail("하이퍼리퀴드 예측은 삼성전자·SK하이닉스만 지원합니다.", 400);
 
-  const tokenName = process.env[t.envKey] ?? t.hlSymbol;
+  const hlSymbol = process.env[t.envKey] ?? t.hlSymbol;
 
   const hit = cache.get(ticker);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
-    return NextResponse.json(hit.data, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    return NextResponse.json(hit.data, { headers: { "Cache-Control": "no-store" } });
   }
 
-  // Spot 토큰 이름 → "@N" 인덱스 변환 (Hyperliquid spot API 필수)
-  const [hlCoin, spotMetaNames] = await resolveSpotCoinDebug(tokenName);
-  if (!hlCoin) {
-    const hint = spotMetaNames.length
-      ? `(사용 가능 토큰: ${spotMetaNames.slice(0, 10).join(", ")}…)`
-      : "(spotMeta 조회 실패)";
-    return fail(
-      `하이퍼리퀴드 spot 마켓을 찾을 수 없습니다 (토큰: ${tokenName}) ${hint}`,
-    );
-  }
-
-  // 병렬 수집: 하이퍼리퀴드 현재가/일봉, KRX 일봉, DRAM 현물
+  // 병렬 수집
   const [hlMid, hlCloses, krCandles, spot] = await Promise.all([
-    fetchHlMid(hlCoin),
-    fetchHlDailyCloses(hlCoin, 150),
+    fetchHlMid(hlSymbol),
+    fetchHlDailyCloses(hlSymbol, 150),
     fetchYahooCandles(t.yahoo, "1day"),
     fetchSpotDxi(),
   ]);
 
-  if (!krCandles || krCandles.length < 10) {
+  // KRX 데이터 없으면 전체 실패
+  if (!krCandles || krCandles.length < 5) {
     return fail("KRX 시세 데이터가 부족합니다.");
   }
-  if (hlCloses.size < 10) {
-    return fail("하이퍼리퀴드 일봉 데이터가 부족합니다 (심볼 확인 필요).");
-  }
 
-  // 날짜 정렬 키
-  const hlDates = [...hlCloses.keys()].sort();
-  const spotDates = [...spot.keys()].sort();
-
-  // KRX 일봉을 날짜별 open/close 로 변환
   const kr = krCandles
     .map((c) => ({
       date: new Date(c.time * 1000).toISOString().slice(0, 10),
@@ -269,9 +187,32 @@ export async function GET(req: NextRequest) {
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // 표본 구성: i>=2, target=(open[i]-close[i-1])/close[i-1]
-  //   hlRet = (HL[d_i]-HL[d_{i-1}])/HL[d_{i-1}] (같은 구간 근사 — 참고용)
-  //   spotRet 동일 구간, 없으면 0
+  const lastKr = kr[kr.length - 1];
+
+  // HL 캔들이 부족하면 현재가만 표시 (예측 없이 available=true)
+  if (hlCloses.size < 8) {
+    const data: HlPredictResponse = {
+      ticker,
+      nameKo: t.nameKo,
+      available: true,
+      hlSymbol,
+      hlPrice: hlMid,
+      lastClose: lastKr.close,
+      predictedOpen: null,
+      predictedGapPct: null,
+      confidence: null,
+      samples: null,
+      corrHl: null,
+      corrSpot: null,
+      error: "하이퍼리퀴드 상장 초기 — 예측 데이터 축적 중입니다.",
+    };
+    cache.set(ticker, { at: Date.now(), data });
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  const hlDates = [...hlCloses.keys()].sort();
+  const spotDates = [...spot.keys()].sort();
+
   const samples: PredictSample[] = [];
   for (let i = 1; i < kr.length; i++) {
     const prev = kr[i - 1];
@@ -294,14 +235,11 @@ export async function GET(req: NextRequest) {
     samples.push({ openGap, hlRet, spotRet });
   }
 
-  // 최신 입력: 현재 HL mid vs 마지막 KRX 거래일의 HL 종가
-  const lastKr = kr[kr.length - 1];
   const hlAtLast = nearestOnOrBefore(hlDates, hlCloses, lastKr.date);
   const latestHlRet =
     hlMid != null && hlAtLast != null && hlAtLast > 0
       ? (hlMid - hlAtLast) / hlAtLast
       : 0;
-  // 최신 현물 수익률: 마지막 두 현물 포인트
   const latestSpotRet =
     spotDates.length >= 2
       ? (() => {
@@ -311,12 +249,27 @@ export async function GET(req: NextRequest) {
         })()
       : 0;
 
-  const pred = fitAndPredict(samples, {
-    hlRet: latestHlRet,
-    spotRet: latestSpotRet,
-  });
+  const pred = fitAndPredict(samples, { hlRet: latestHlRet, spotRet: latestSpotRet });
+
+  // 예측 실패해도 현재가는 표시
   if (!pred) {
-    return fail("예측에 필요한 표본이 부족합니다.");
+    const data: HlPredictResponse = {
+      ticker,
+      nameKo: t.nameKo,
+      available: true,
+      hlSymbol,
+      hlPrice: hlMid,
+      lastClose: lastKr.close,
+      predictedOpen: null,
+      predictedGapPct: null,
+      confidence: null,
+      samples: null,
+      corrHl: null,
+      corrSpot: null,
+      error: "예측에 필요한 표본이 부족합니다 (데이터 축적 중).",
+    };
+    cache.set(ticker, { at: Date.now(), data });
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
   }
 
   const predictedOpen = Math.round(lastKr.close * (1 + pred.predictedGap));
@@ -325,7 +278,7 @@ export async function GET(req: NextRequest) {
     ticker,
     nameKo: t.nameKo,
     available: true,
-    hlSymbol: tokenName,
+    hlSymbol,
     hlPrice: hlMid,
     lastClose: lastKr.close,
     predictedOpen,
